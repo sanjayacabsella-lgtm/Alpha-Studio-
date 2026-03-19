@@ -7,7 +7,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- Advanced Neon & Futuristic CSS (UPGRADED) ---
+# --- Advanced Neon & Futuristic CSS ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&display=swap');
@@ -125,7 +125,7 @@ st.markdown("""
         margin-bottom: 25px;
     }
 
-    /* Neon Button Upgrade */
+    /* Neon Button */
     .action-link {
         display: inline-block;
         padding: 12px 35px;
@@ -163,7 +163,7 @@ st.markdown("""
         box-shadow: 0 0 25px #00ffff;
     }
 
-    /* Footer Glow */
+    /* Footer */
     .footer {
         text-align: center;
         color: #777;
@@ -180,4 +180,83 @@ st.markdown("""
 st.markdown('<h1 class="main-header">ALPHA STUDIO</h1>', unsafe_allow_html=True)
 st.markdown('<p class="sub-header">The Collaborative Hub of Digital Excellence</p>', unsafe_allow_html=True)
 
-# (Your existing layout below stays EXACTLY the same)
+# Row 1
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.markdown(f'''
+        <div class="studio-card">
+            <img src="https://images.unsplash.com/photo-1677442136019-21780ecad995?w=600&auto=format&fit=crop" class="card-img">
+            <div class="card-body">
+                <div class="card-title">Alpha AI</div>
+                <div class="card-text">Our flagship artificial intelligence for chat, logic, and creative generation.</div>
+                <a href="https://alpha-ai-dibjvtzmag2vhb8a4knhdh.streamlit.app/" target="_blank" class="action-link">Open Alpha AI →</a>
+            </div>
+        </div>
+    ''', unsafe_allow_html=True)
+
+with col2:
+    st.markdown('''
+        <div class="studio-card">
+            <img src="https://images.unsplash.com/photo-1536240478700-b869070f9279?w=600&auto=format&fit=crop" class="card-img">
+            <div class="card-body">
+                <div class="card-title">Video Creation</div>
+                <div class="card-text">Advanced tools for cinematic video production and professional storytelling.</div>
+                <a href="#" class="action-link">Coming Soon</a>
+            </div>
+        </div>
+    ''', unsafe_allow_html=True)
+
+with col3:
+    st.markdown('''
+        <div class="studio-card">
+            <img src="https://images.unsplash.com/photo-1485846234645-a62644f84728?w=600&auto=format&fit=crop" class="card-img">
+            <div class="card-body">
+                <div class="card-title">Movie Editing</div>
+                <div class="card-text">High-end movie post-production, sound engineering, and color correction.</div>
+                <a href="#" class="action-link">Coming Soon</a>
+            </div>
+        </div>
+    ''', unsafe_allow_html=True)
+
+# Row 2
+col4, col5, col6 = st.columns(3)
+
+with col4:
+    st.markdown('''
+        <div class="studio-card">
+            <img src="https://images.unsplash.com/photo-1542038784456-1ea8e935640e?w=600&auto=format&fit=crop" class="card-img">
+            <div class="card-body">
+                <div class="card-title">Photo Lab</div>
+                <div class="card-text">Professional digital retouching and master photo manipulation services.</div>
+                <a href="#" class="action-link">Coming Soon</a>
+            </div>
+        </div>
+    ''', unsafe_allow_html=True)
+
+with col5:
+    st.markdown('''
+        <div class="studio-card">
+            <img src="https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=600&auto=format&fit=crop" class="card-img">
+            <div class="card-body">
+                <div class="card-title">Game Dev</div>
+                <div class="card-text">Designing immersive interactive worlds and next-gen gaming experiences.</div>
+                <a href="#" class="action-link">Coming Soon</a>
+            </div>
+        </div>
+    ''', unsafe_allow_html=True)
+
+with col6:
+    st.markdown('''
+        <div class="studio-card">
+            <img src="https://images.unsplash.com/photo-1535223289827-42f1e9919769?w=600&auto=format&fit=crop" class="card-img">
+            <div class="card-body">
+                <div class="card-title">Color Grading</div>
+                <div class="card-text">Cinematic color correction and artistic grading for master creators.</div>
+                <a href="#" class="action-link">Coming Soon</a>
+            </div>
+        </div>
+    ''', unsafe_allow_html=True)
+
+# Footer
+st.markdown('<div class="footer">ALPHA STUDIO • POWERED BY THE ALPHA TEAM</div>', unsafe_allow_html=True)
