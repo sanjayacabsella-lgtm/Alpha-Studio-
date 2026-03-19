@@ -19,16 +19,20 @@ st.markdown("""
         background-attachment: fixed;
     }
 
-    /* Animated Glow Title */
     .main-header {
         font-family: 'Orbitron', sans-serif;
         font-size: 85px;
         font-weight: 900;
-        text-align: center;
         color: #ffffff;
-        letter-spacing: 18px;
         text-transform: uppercase;
         margin-top: 60px;
+        margin-bottom: 10px;
+        text-align: center;
+        width: 100%;
+        display: block;
+        letter-spacing: 10px;
+        line-height: 1.1;
+        transform: translateX(5px);
         animation: glowPulse 3s infinite alternate;
     }
 
@@ -51,7 +55,6 @@ st.markdown("""
         text-transform: uppercase;
     }
 
-    /* Glassmorphism Card */
     .studio-card {
         backdrop-filter: blur(12px);
         background: rgba(255, 255, 255, 0.04);
@@ -66,7 +69,6 @@ st.markdown("""
         position: relative;
     }
 
-    /* Neon Border Animation */
     .studio-card::before {
         content: "";
         position: absolute;
@@ -125,7 +127,6 @@ st.markdown("""
         margin-bottom: 25px;
     }
 
-    /* Neon Button */
     .action-link {
         display: inline-block;
         padding: 12px 35px;
@@ -163,7 +164,6 @@ st.markdown("""
         box-shadow: 0 0 25px #00ffff;
     }
 
-    /* Footer */
     .footer {
         text-align: center;
         color: #777;
@@ -198,7 +198,7 @@ with col1:
 with col2:
     st.markdown('''
         <div class="studio-card">
-            <img src="https://images.unsplash.com/photo-1536240478700-b869070f9279?w=600&auto=format&fit=crop" class="card-img">
+            <img src="https://images.unsplash.com/photo-1492724441997-5dc865305da7?w=600&auto=format&fit=crop" class="card-img">
             <div class="card-body">
                 <div class="card-title">Video Creation</div>
                 <div class="card-text">Advanced tools for cinematic video production and professional storytelling.</div>
