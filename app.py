@@ -1,281 +1,246 @@
 import streamlit as st
 
-# --- 1. Page Configuration ---
+# --- 1. Page Configuration (Keep it hidden for a cleaner look) ---
 st.set_page_config(
-    page_title="Alpha Studio & Shop | Your Creative Hub",
+    page_title="Alpha Studio | The Art of Creation",
     page_icon="🎬",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
-# --- 2. Styling (CSS) - Based on your NEW Design ---
-# මෙහිදී මම ඔයා එවපු ඩිසයින් එකේ තියෙන ෆොන්ට්, වර්ණ (නැවී බ්ලූ සහ වයිට්)
-# සහ Layout එකට සමානව CSS නිර්මාණය කළා.
+# --- 2. Advanced CSS for a Professional & Creative Look ---
 st.markdown("""
     <style>
-    /* Importing a Clean, Professional Font */
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
+    /* Import Professional Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Orbitron:wght@700;900&display=swap');
 
-    body, .stApp {
+    /* Global Styles */
+    .stApp {
+        background-color: #050a14; /* Dark futuristic background */
+        color: #e0e0e0;
         font-family: 'Poppins', sans-serif;
-        background-color: #f4f6f9; /* Light grey/white background from */
-        color: #1a202c;
     }
 
-    /* Navy Blue Top Navigation Bar - Based on */
-    .top-navbar {
-        background-color: #0f172a; /* Navy Blue like */
-        color: white;
-        padding: 10px 50px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        width: 100%;
+    /* --- Full Screen Video Background --- */
+    .video-background {
         position: fixed;
-        top: 0;
-        left: 0;
-        z-index: 1000;
-        height: 70px;
-    }
-    .nav-links {
-        display: flex;
-        gap: 30px;
-        list-style: none;
-        margin: 0;
-        padding: 0;
-    }
-    .nav-links li a {
-        color: white;
-        text-decoration: none;
-        font-weight: 600;
-        font-size: 15px;
+        right: 0;
+        bottom: 0;
+        min-width: 100%;
+        min-height: 100%;
+        z-index: -1;
+        opacity: 0.2; /* Subtle visibility */
+        object-fit: cover;
     }
 
-    /* Main Content Styling to accommodate navbar */
-    .main-content {
-        margin-top: 100px;
+    /* --- Main Title Styling (Orbitron + Glow) --- */
+    .main-title {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 70px;
+        font-weight: 900;
+        text-align: center;
+        color: #ffffff;
+        letter-spacing: 10px;
+        text-transform: uppercase;
+        margin-top: 60px;
+        margin-bottom: 5px;
+        text-shadow: 0 0 20px rgba(0, 255, 255, 0.7);
+    }
+    
+    .subtitle {
+        text-align: center;
+        color: #00ffff;
+        font-size: 20px;
+        letter-spacing: 3px;
+        margin-bottom: 70px;
+        font-weight: 300;
+    }
+
+    /* --- Glassmorphism Card Styling --- */
+    .card-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 40px;
         padding: 20px;
-    }
-
-    /* Section Styling */
-    .section-container {
         max-width: 1300px;
         margin: auto;
-        padding-bottom: 50px;
-    }
-    .section-title {
-        font-size: 36px;
-        font-weight: 700;
-        color: #0f172a;
-        margin-bottom: 10px;
-    }
-    .section-subtitle {
-        color: #4a5568;
-        font-size: 16px;
-        margin-bottom: 40px;
     }
 
-    /* Card Styling for Grid Layout */
     .studio-card {
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        background: rgba(255, 255, 255, 0.03); /* Translucent background */
+        backdrop-filter: blur(10px); /* Frosted glass effect */
+        border: 1px solid rgba(0, 255, 255, 0.2); /* Subtle cyan border */
+        border-radius: 20px;
+        padding: 0;
+        text-align: center;
+        transition: all 0.4s ease-in-out;
         overflow: hidden;
-        transition: transform 0.3s;
-        height: 100%;
+        height: 480px;
         display: flex;
         flex-direction: column;
     }
+
     .studio-card:hover {
-        transform: translateY(-5px);
+        transform: translateY(-15px); /* Lift up on hover */
+        border-color: rgba(0, 255, 255, 0.8);
+        box-shadow: 0 0 40px rgba(0, 255, 255, 0.5); /* Neon glow on hover */
+        background: rgba(255, 255, 255, 0.06);
     }
-    .card-img {
+
+    /* Professional Images for Cards */
+    .card-image {
         width: 100%;
         height: 250px;
         object-fit: cover;
-    }
-    .card-body {
-        padding: 20px;
-        flex-grow: 1;
-        text-align: center;
-    }
-    .card-title {
-        font-size: 20px;
-        font-weight: 600;
-        color: #1a202c;
-        margin-bottom: 10px;
-    }
-    .card-desc {
-        color: #4a5568;
-        font-size: 14px;
-        margin-bottom: 20px;
+        border-top-left-radius: 20px;
+        border-top-right-radius: 20px;
+        filter: brightness(0.8); /* Slightly darker for better text contrast */
     }
 
-    /* Navy Blue Buttons from */
-    .btn {
-        background-color: #0f172a;
-        color: white;
-        padding: 10px 25px;
-        border: none;
-        border-radius: 6px;
+    .card-content {
+        padding: 25px;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .card-title {
+        font-size: 24px;
+        font-weight: 600;
+        color: #ffffff;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+    }
+
+    .card-description {
+        color: #b0b0b0;
+        font-size: 15px;
+        line-height: 1.6;
+        margin-bottom: 25px;
+    }
+
+    /* --- Neon Enter Button --- */
+    .enter-btn {
+        display: inline-block;
+        padding: 12px 30px;
+        background-color: transparent;
+        border: 2px solid #00ffff;
+        color: #00ffff;
         text-transform: uppercase;
         font-weight: bold;
-        cursor: pointer;
-        transition: background-color 0.3s;
-        display: inline-block;
         text-decoration: none;
+        border-radius: 8px;
+        transition: all 0.3s;
+        font-size: 14px;
     }
-    .btn:hover {
-        background-color: #1e293b;
-    }
-    
-    /* Spacer utility */
-    .spacer { height: 50px; }
 
-    /* Fix to hide standard streamlit elements and keep it looking like a website */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
+    .enter-btn:hover {
+        background-color: #00ffff;
+        color: #050a14;
+        box-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+    }
+
+    /* Hide standard Streamlit header and footer for a pure website feel */
+    header, footer {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. Navbar Section (Top Bar) ---
-st.markdown(f'''
-    <div class="top-navbar">
-        <div style="font-size: 24px; font-weight: bold; text-transform: uppercase; color: #ffcc00;">ALPHA</div>
-        <ul class="nav-links">
-            <li><a href="#">Home</a></li>
-            <li><a href="#">Studio</a></li>
-            <li><a href="#">Shop</a></li>
-            <li><a href="#">About</a></li>
-            <li><a href="#">Contact</a></li>
-        </ul>
-        <a href="https://alpha-ai-dibjvtzmag2vhb8a4knhdh.streamlit.app/" target="_blank" class="btn" style="padding: 8px 20px;">Open AI</a>
-    </div>
-''', unsafe_allow_html=True)
+# --- 3. Full Screen Video Background Implementation ---
+# I am using a subtle abstract tech video from Pixabay. 
+# You can change this URL to any direct video link.
+st.markdown("""
+    <video autoplay loop muted class="video-background">
+        <source src="https://cdn.pixabay.com/video/2018/12/12/20124-307567018_tiny.mp4" type="video/mp4">
+    </video>
+    """, unsafe_allow_html=True)
 
-# --- Main Content Area ---
-st.markdown('<div class="main-content">', unsafe_allow_html=True)
+# --- 4. Main Content (The Website) ---
 
-st.write('<div class="spacer"></div>', unsafe_allow_html=True)
+st.markdown('<h1 class="main-title">ALPHA STUDIO</h1>', unsafe_allow_html=True)
+st.markdown('<p class="subtitle">Where Creativity Meets Technology • Sri Lanka</p>', unsafe_allow_html=True)
 
-# --- 4. Hero Section (Welcome) - From ---
-st.markdown(f'''
-    <div class="section-container" style="text-align: center;">
-        <h1 class="section-title">Welcome to Alpha Studio & Shop</h1>
-        <p class="section-subtitle">Your Premier Hub for High-Quality Video Production, Professional Editing Services, and Cinematic Gear.</p>
-        <div style="gap: 15px; display: flex; justify-content: center;">
-            <a href="#" class="btn">Explore Our Services</a>
-            <a href="#" class="btn" style="background-color: transparent; color: #0f172a; border: 2px solid #0f172a;">Visit the Shop</a>
-        </div>
-    </div>
-''', unsafe_allow_html=True)
-
-st.write('<div class="spacer"></div>', unsafe_allow_html=True)
-st.write("---")
-
-# --- 5. Studio Services Grid Section ---
-st.markdown(f'''
-    <div class="section-container">
-        <h2 class="section-title">Alpha Studio Services</h2>
-        <p class="section-subtitle">From conception to final cut, we provide end-to-end solutions for all your production needs.</p>
-        <br>
-    </div>
-''', unsafe_allow_html=True)
-
-# Grid Layout with 3 Columns
+# Using Columns to create the Grid
 col1, col2, col3 = st.columns(3)
 
-# Service 1: Video Creation
+# Service 1: ALPHA AI (Integrated with your existing link)
 with col1:
-    st.markdown('''
+    st.markdown(f'''
         <div class="studio-card">
-            <img src="https://images.pexels.com/photos/2510428/pexels-photo-2510428.jpeg?auto=format&fit=crop&w=600" class="card-img">
-            <div class="card-body">
-                <div class="card-title">Video Creation</div>
-                <div class="card-desc">Professional cinematic production from short films to advertisements.</div>
-                <a href="#" class="btn">Learn More →</a>
+            <img src="https://images.unsplash.com/photo-1620712943543-bcc4628c6757?q=80&w=600&auto=format&fit=crop" class="card-image">
+            <div class="card-content">
+                <div class="card-title">Alpha AI</div>
+                <div class="card-description">Chat with our advanced AI assistant, built by Hasith. It can code, write, and think.</div>
+                <a href="https://alpha-ai-dibjvtzmag2vhb8a4knhdh.streamlit.app/" target="_blank" class="enter-btn">Chat with Alpha →</a>
             </div>
         </div>
     ''', unsafe_allow_html=True)
 
-# Service 2: Movie Editing
+# Service 2: Video Creation
 with col2:
     st.markdown('''
         <div class="studio-card">
-            <img src="https://images.pexels.com/photos/1117132/pexels-photo-1117132.jpeg?auto=format&fit=crop&w=600" class="card-img">
-            <div class="card-body">
-                <div class="card-title">Movie Editing</div>
-                <div class="card-desc">High-end movie editing, post-production, and sound design.</div>
-                <a href="#" class="active-btn">Learn More →</a>
+            <img src="https://images.unsplash.com/photo-1536240478700-b869070f9279?q=80&w=600&auto=format&fit=crop" class="card-image">
+            <div class="card-content">
+                <div class="card-title">Video Creation</div>
+                <div class="card-description">Cinematic video production, short films, documentaries, and professional storytelling.</div>
+                <a href="#" class="enter-btn">Explore →</a>
             </div>
         </div>
     ''', unsafe_allow_html=True)
 
-# Service 3: Photo Editing & Grading
+# Service 3: Movie Editing & Sound
 with col3:
     st.markdown('''
         <div class="studio-card">
-            <img src="https://images.pexels.com/photos/15420387/pexels-photo-15420387.jpeg?auto=format&fit=crop&w=600" class="card-img">
-            <div class="card-body">
-                <div class="card-title">Photo Lab</div>
-                <div class="card-desc">Advanced photo editing, creative manipulation, and color grading.</div>
-                <a href="#" class="btn">Learn More →</a>
+            <img src="https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=600&auto=format&fit=crop" class="card-image">
+            <div class="card-content">
+                <div class="card-title">Movie Editing</div>
+                <div class="card-description">High-end movie editing, post-production, sound engineering, and visual effects.</div>
+                <a href="#" class="enter-btn">Explore →</a>
             </div>
         </div>
     ''', unsafe_allow_html=True)
 
-st.write('<div class="spacer"></div>', unsafe_allow_html=True)
 st.write("---")
-
-# --- 6. Shop Categories Grid Section ---
-st.markdown(f'''
-    <div class="section-container">
-        <h2 class="section-title">Explore Alpha Shop</h2>
-        <p class="section-subtitle">Find premium camera gear, audio equipment, and accessories for professional creators.</p>
-        <br>
-    </div>
-''', unsafe_allow_html=True)
 
 col4, col5, col6 = st.columns(3)
 
-# Category 1: Photo Grading Gear (Filters/Flares)
+# Service 4: Photo Lab (Retouching & Grading)
 with col4:
     st.markdown('''
         <div class="studio-card">
-            <img src="https://images.pexels.com/photos/279906/pexels-photo-279906.jpeg?auto=format&fit=crop&w=600" class="card-img">
-            <div class="card-body">
-                <div class="card-title">Optics & Filters</div>
-                <div class="card-desc">Advanced camera filters, lens flares, and artistic tools for grading.</div>
-                <a href="#" class="btn">Shop Now →</a>
+            <img src="https://images.unsplash.com/photo-1542038784456-1ea8e935640e?q=80&w=600&auto=format&fit=crop" class="card-image">
+            <div class="card-content">
+                <div class="card-title">Photo Lab</div>
+                <div class="card-description">Advanced digital retouching, artistic photo manipulation, and detailed color grading.</div>
+                <a href="#" class="enter-btn">Explore →</a>
             </div>
         </div>
     ''', unsafe_allow_html=True)
 
-# Category 2: General Shop Area
+# Service 5: Game Development
 with col5:
     st.markdown('''
         <div class="studio-card">
-            <img src="https://images.pexels.com/photos/306763/pexels-photo-306763.jpeg?auto=format&fit=crop&w=600" class="card-img">
-            <div class="card-body">
-                <div class="card-title">Camera Gear</div>
-                <div class="card-desc">Top-tier cameras, lenses, and bodies for video production.</div>
-                <a href="#" class="btn">Shop Now →</a>
+            <img src="https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=600&auto=format&fit=crop" class="card-image">
+            <div class="card-content">
+                <div class="card-title">Game Dev</div>
+                <div class="card-desc">Building immersive 3D worlds, interactive gaming experiences, and next-gen mechanics.</div>
+                <a href="#" class="enter-btn">Explore →</a>
             </div>
         </div>
     ''', unsafe_allow_html=True)
 
-# Category 3: Audio & Accessories
+# Service 6: Cinematic Grading (Special Feature)
 with col6:
     st.markdown('''
         <div class="studio-card">
-            <img src="https://images.pexels.com/photos/218018/pexels-photo-218018.jpeg?auto=format&fit=crop&w=600" class="card-img">
-            <div class="card-body">
-                <div class="card-title">Accessories</div>
-                <div class="card-desc">Audio recorders, microphones, tripods, and other essential gear.</div>
-                <a href="#" class="btn">Shop Now →</a>
+            <img src="https://images.unsplash.com/photo-1535223289827-42f1e9919769?q=80&w=600&auto=format&fit=crop" class="card-image">
+            <div class="card-content">
+                <div class="card-title">Color Grading</div>
+                <div class="card-description">Cinematic color correction and artistic photo grading for high-end photography.</div>
+                <a href="#" class="enter-btn">Explore →</a>
             </div>
         </div>
     ''', unsafe_allow_html=True)
-
-# Close main content area
-st.markdown('</div>', unsafe_allow_html=True)
