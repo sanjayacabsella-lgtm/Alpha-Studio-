@@ -1,246 +1,114 @@
 import streamlit as st
+import streamlit.components.v1 as components
 
-# --- 1. Page Configuration (Keep it hidden for a cleaner look) ---
+# --- PAGE CONFIGURATION ---
 st.set_page_config(
-    page_title="Alpha Studio | The Art of Creation",
-    page_icon="🎬",
+    page_title="AlphaStudio | Ultimate Cloud Gaming Hub",
+    page_icon="🚀",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded",
 )
 
-# --- 2. Advanced CSS for a Professional & Creative Look ---
+# --- CUSTOM CSS FOR STYLING ---
 st.markdown("""
     <style>
-    /* Import Professional Fonts */
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Orbitron:wght@700;900&display=swap');
-
-    /* Global Styles */
+    .main {
+        background-color: #0e1117;
+    }
     .stApp {
-        background-color: #050a14; /* Dark futuristic background */
-        color: #e0e0e0;
-        font-family: 'Poppins', sans-serif;
+        background: linear-gradient(160deg, #0e1117 0%, #1a1c24 100%);
     }
-
-    /* --- Full Screen Video Background --- */
-    .video-background {
-        position: fixed;
-        right: 0;
-        bottom: 0;
-        min-width: 100%;
-        min-height: 100%;
-        z-index: -1;
-        opacity: 0.2; /* Subtle visibility */
-        object-fit: cover;
+    h1 {
+        color: #00f2fe;
+        text-shadow: 2px 2px 10px #00f2fe66;
     }
-
-    /* --- Main Title Styling (Orbitron + Glow) --- */
-    .main-title {
-        font-family: 'Orbitron', sans-serif;
-        font-size: 70px;
-        font-weight: 900;
-        text-align: center;
-        color: #ffffff;
-        letter-spacing: 10px;
-        text-transform: uppercase;
-        margin-top: 60px;
-        margin-bottom: 5px;
-        text-shadow: 0 0 20px rgba(0, 255, 255, 0.7);
-    }
-    
-    .subtitle {
-        text-align: center;
-        color: #00ffff;
-        font-size: 20px;
-        letter-spacing: 3px;
-        margin-bottom: 70px;
-        font-weight: 300;
-    }
-
-    /* --- Glassmorphism Card Styling --- */
-    .card-container {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 40px;
+    .game-card {
+        background-color: #161b22;
         padding: 20px;
-        max-width: 1300px;
-        margin: auto;
-    }
-
-    .studio-card {
-        background: rgba(255, 255, 255, 0.03); /* Translucent background */
-        backdrop-filter: blur(10px); /* Frosted glass effect */
-        border: 1px solid rgba(0, 255, 255, 0.2); /* Subtle cyan border */
-        border-radius: 20px;
-        padding: 0;
+        border-radius: 15px;
+        border: 1px solid #30363d;
         text-align: center;
-        transition: all 0.4s ease-in-out;
-        overflow: hidden;
-        height: 480px;
-        display: flex;
-        flex-direction: column;
+        transition: 0.3s;
     }
-
-    .studio-card:hover {
-        transform: translateY(-15px); /* Lift up on hover */
-        border-color: rgba(0, 255, 255, 0.8);
-        box-shadow: 0 0 40px rgba(0, 255, 255, 0.5); /* Neon glow on hover */
-        background: rgba(255, 255, 255, 0.06);
+    .game-card:hover {
+        border-color: #58a6ff;
+        transform: translateY(-5px);
     }
-
-    /* Professional Images for Cards */
-    .card-image {
-        width: 100%;
-        height: 250px;
-        object-fit: cover;
-        border-top-left-radius: 20px;
-        border-top-right-radius: 20px;
-        filter: brightness(0.8); /* Slightly darker for better text contrast */
-    }
-
-    .card-content {
-        padding: 25px;
-        flex-grow: 1;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-    }
-
-    .card-title {
-        font-size: 24px;
-        font-weight: 600;
-        color: #ffffff;
-        margin-bottom: 10px;
-        text-transform: uppercase;
-    }
-
-    .card-description {
-        color: #b0b0b0;
-        font-size: 15px;
-        line-height: 1.6;
-        margin-bottom: 25px;
-    }
-
-    /* --- Neon Enter Button --- */
-    .enter-btn {
-        display: inline-block;
-        padding: 12px 30px;
-        background-color: transparent;
-        border: 2px solid #00ffff;
-        color: #00ffff;
-        text-transform: uppercase;
-        font-weight: bold;
-        text-decoration: none;
-        border-radius: 8px;
-        transition: all 0.3s;
-        font-size: 14px;
-    }
-
-    .enter-btn:hover {
-        background-color: #00ffff;
-        color: #050a14;
-        box-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
-    }
-
-    /* Hide standard Streamlit header and footer for a pure website feel */
-    header, footer {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. Full Screen Video Background Implementation ---
-# I am using a subtle abstract tech video from Pixabay. 
-# You can change this URL to any direct video link.
-st.markdown("""
-    <video autoplay loop muted class="video-background">
-        <source src="https://cdn.pixabay.com/video/2018/12/12/20124-307567018_tiny.mp4" type="video/mp4">
-    </video>
-    """, unsafe_allow_html=True)
+# --- GAME DATA DICTIONARY ---
+# You can easily add up to 100+ games here by following the same format
+game_library = {
+    "🔥 Action & Arcade": {
+        "Super Mario Bros": "https://supermario-game.com/emulate",
+        "Pac-Man Classic": "https://www.google.com/logos/2010/pacman10-i.html",
+        "Sonic the Hedgehog": "https://www.retrogames.cc/embed/41727-sonic-the-hedgehog-usa-europe.html",
+        "Street Fighter II": "https://www.retrogames.cc/embed/10042-street-fighter-ii-the-world-warrior-world-910522.html",
+        "Tetris": "https://tetris.com/play-tetris",
+        "Space Invaders": "https://freeinvaders.org/",
+    },
+    "🧩 Puzzle & Strategy": {
+        "2048": "https://play2048.co/",
+        "Chess.com": "https://www.chess.com/play/online",
+        "Sudoku": "https://www.sudogrand.com/",
+        "Minesweeper": "https://minesweeper-pro.com/",
+    },
+    "🏎️ Racing & Sports": {
+        "Drift Hunters": "https://v6p9d9t4.ssl.hwcdn.net/html/1458210/index.html",
+        "8 Ball Pool": "https://www.miniclip.com/games/8-ball-pool-multiplayer/en/web-embed/",
+        "Moto X3M": "https://games.softgames.com/moto-x3m/",
+    },
+    "⭐ Community Favorites": {
+        "Flappy Bird": "https://flappybird.io/",
+        "Slither.io": "https://slither.io/",
+        "Among Us (Clone)": "https://amogus.io/",
+    }
+}
 
-# --- 4. Main Content (The Website) ---
+# --- SIDEBAR NAVIGATION ---
+st.sidebar.image("https://img.icons8.com/neon/96/controller.png", width=80)
+st.sidebar.title("ALPHA STUDIO")
+st.sidebar.markdown("---")
 
-st.markdown('<h1 class="main-title">ALPHA STUDIO</h1>', unsafe_allow_html=True)
-st.markdown('<p class="subtitle">Where Creativity Meets Technology • Sri Lanka</p>', unsafe_allow_html=True)
+category = st.sidebar.selectbox("📂 Select Category", list(game_library.keys()))
+selected_game = st.sidebar.selectbox("🎮 Choose Your Game", list(game_library[category].keys()))
 
-# Using Columns to create the Grid
-col1, col2, col3 = st.columns(3)
+st.sidebar.markdown("---")
+st.sidebar.write("👤 **Developer:** Hasith")
+st.sidebar.write("🚀 **Powered by:** Alpha AI Cloud")
+st.sidebar.success("v2.0 Pro Version Loaded")
 
-# Service 1: ALPHA AI (Integrated with your existing link)
+# --- MAIN INTERFACE ---
+col1, col2 = st.columns([3, 1])
+
 with col1:
-    st.markdown(f'''
-        <div class="studio-card">
-            <img src="https://images.unsplash.com/photo-1620712943543-bcc4628c6757?q=80&w=600&auto=format&fit=crop" class="card-image">
-            <div class="card-content">
-                <div class="card-title">Alpha AI</div>
-                <div class="card-description">Chat with our advanced AI assistant, built by Hasith. It can code, write, and think.</div>
-                <a href="https://alpha-ai-dibjvtzmag2vhb8a4knhdh.streamlit.app/" target="_blank" class="enter-btn">Chat with Alpha →</a>
-            </div>
-        </div>
-    ''', unsafe_allow_html=True)
+    st.title("🚀 AlphaStudio Gaming Hub")
+    st.markdown(f"### Now Playing: **{selected_game}**")
 
-# Service 2: Video Creation
 with col2:
-    st.markdown('''
-        <div class="studio-card">
-            <img src="https://images.unsplash.com/photo-1536240478700-b869070f9279?q=80&w=600&auto=format&fit=crop" class="card-image">
-            <div class="card-content">
-                <div class="card-title">Video Creation</div>
-                <div class="card-description">Cinematic video production, short films, documentaries, and professional storytelling.</div>
-                <a href="#" class="enter-btn">Explore →</a>
-            </div>
+    st.info(f"**Category:** {category}")
+
+# --- GAME PLAYER ENGINE ---
+game_url = game_library[category][selected_game]
+
+if game_url:
+    # Creating a responsive container for the game
+    st.markdown(
+        f"""
+        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; background: #000; border-radius: 20px; border: 4px solid #1f2937;">
+            <iframe 
+                src="{game_url}" 
+                style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" 
+                allowfullscreen>
+            </iframe>
         </div>
-    ''', unsafe_allow_html=True)
+        """,
+        unsafe_allow_html=True
+    )
+    
+    st.write("---")
+    st.caption("Tip: Use Fullscreen mode for the best experience. Some games might take a few seconds to load from the cloud.")
 
-# Service 3: Movie Editing & Sound
-with col3:
-    st.markdown('''
-        <div class="studio-card">
-            <img src="https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=600&auto=format&fit=crop" class="card-image">
-            <div class="card-content">
-                <div class="card-title">Movie Editing</div>
-                <div class="card-description">High-end movie editing, post-production, sound engineering, and visual effects.</div>
-                <a href="#" class="enter-btn">Explore →</a>
-            </div>
-        </div>
-    ''', unsafe_allow_html=True)
-
-st.write("---")
-
-col4, col5, col6 = st.columns(3)
-
-# Service 4: Photo Lab (Retouching & Grading)
-with col4:
-    st.markdown('''
-        <div class="studio-card">
-            <img src="https://images.unsplash.com/photo-1542038784456-1ea8e935640e?q=80&w=600&auto=format&fit=crop" class="card-image">
-            <div class="card-content">
-                <div class="card-title">Photo Lab</div>
-                <div class="card-description">Advanced digital retouching, artistic photo manipulation, and detailed color grading.</div>
-                <a href="#" class="enter-btn">Explore →</a>
-            </div>
-        </div>
-    ''', unsafe_allow_html=True)
-
-# Service 5: Game Development
-with col5:
-    st.markdown('''
-        <div class="studio-card">
-            <img src="https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=600&auto=format&fit=crop" class="card-image">
-            <div class="card-content">
-                <div class="card-title">Game Dev</div>
-                <div class="card-desc">Building immersive 3D worlds, interactive gaming experiences, and next-gen mechanics.</div>
-                <a href="#" class="enter-btn">Explore →</a>
-            </div>
-        </div>
-    ''', unsafe_allow_html=True)
-
-# Service 6: Cinematic Grading (Special Feature)
-with col6:
-    st.markdown('''
-        <div class="studio-card">
-            <img src="https://images.unsplash.com/photo-1535223289827-42f1e9919769?q=80&w=600&auto=format&fit=crop" class="card-image">
-            <div class="card-content">
-                <div class="card-title">Color Grading</div>
-                <div class="card-description">Cinematic color correction and artistic photo grading for high-end photography.</div>
-                <a href="#" class="enter-btn">Explore →</a>
-            </div>
-        </div>
-    ''', unsafe_allow_html=True)
+# --- FOOTER ---
+st.markdown("<br><center>AlphaStudio © 2026 | Unleash the Gamer in You</center>", unsafe_allow_html=True)
