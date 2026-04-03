@@ -41,6 +41,10 @@ if "messages" not in st.session_state: st.session_state.messages=[]
 if "logged_in" not in st.session_state: st.session_state.logged_in=False
 if "user_full_name" not in st.session_state: st.session_state.user_full_name=None
 
+# --- පින්තූරය මැකී නොයෑම සඳහා අලුතින් එක් කළ කොටස ---
+if "generated_image" not in st.session_state: st.session_state.generated_image = None
+if "generated_seed" not in st.session_state: st.session_state.generated_seed = None
+
 # -----------------------
 # 4. Custom UI Styling
 # -----------------------
@@ -186,14 +190,20 @@ with tab_img:
                         headers = {"Authorization": f"Bearer {POLLINATIONS_KEY}"}
                         url = f"https://gen.pollinations.ai/image/{urllib.parse.quote(img_p)}?width=1024&height=1024&seed={seed}&model={img_model}&nologo=true"  
                         response = requests.get(url, headers=headers, timeout=60)  
-                        if response.status_code == 200:  
-                            st.image(response.content, use_container_width=True)  
-                            st.download_button("Download 📥", response.content, f"alpha_{seed}.png")
+                        if response.status_code == 200: 
+                            # පින්තූරය Session State එකට දමනවා
+                            st.session_state.generated_image = response.content
+                            st.session_state.generated_seed = seed
                             if not is_premium: update_usage(st.session_state.user_full_name, current_count)
-                            st.rerun()
                         else: st.error(f"Error: {response.status_code}")
                     except Exception as e: st.error(f"Error: {e}")  
             else: st.error("🚫 Daily free limit (5/5) reached!")
+
+    # පින්තූරය තිරය මත පෙන්වීම (Rerun වූවත් මෙය මැකෙන්නේ නැත)
+    if st.session_state.generated_image:
+        st.image(st.session_state.generated_image, use_container_width=True)  
+        st.download_button("Download 📥", st.session_state.generated_image, f"alpha_{st.session_state.generated_seed}.png", "image/png")
+        
     st.markdown('</div>', unsafe_allow_html=True)
 
 with tab_vid:
