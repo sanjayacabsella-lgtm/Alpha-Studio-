@@ -1,1 +1,8 @@
 streamlit
+huggingface_hub
+groq
+requests
+pillow
+edge-tts
+duckduckgo-search
+supabase
