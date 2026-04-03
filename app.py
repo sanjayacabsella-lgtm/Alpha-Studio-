@@ -8,7 +8,7 @@ import time
 import urllib.parse
 import random
 from duckduckgo_search import DDGS 
-from supabase import create_client, Client # අලුතින් එක් කළා
+from supabase import create_client, Client
 import datetime
 
 # -----------------------
@@ -20,18 +20,17 @@ st.set_page_config(page_title="Alpha AI | Created by Hasith", layout="wide", pag
 st.markdown('<meta name="google-site-verification" content="W6jIGzCkkez2SpjygP6z0dJfinBNALmw2Hv-MkJvFB0" />', unsafe_allow_html=True)
 
 # -----------------------
-# 2. Database & API Setup
+# 2. API & Database Setup
 # -----------------------
-# Supabase Setup
+# Streamlit Secrets වලින් දත්ත ලබා ගැනීම
 SUPABASE_URL = st.secrets.get("SUPABASE_URL")
 SUPABASE_KEY = st.secrets.get("SUPABASE_KEY")
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 HF_TOKEN = st.secrets.get("HF_TOKEN")
-POLLINATIONS_KEY = st.secrets.get("POLLINATIONS_API_KEY", "sk_Z0oEnm05szbphnbZ9ClRCukKV2HyDMH5")
 OPENROUTER_API_KEY = st.secrets.get("OPENROUTER_API_KEY")
 
+# Clients Initialize කිරීම
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 groq_client = Groq(api_key=GROQ_API_KEY)
 hf_client = InferenceClient(token=HF_TOKEN)
 
@@ -52,32 +51,41 @@ st.markdown("""
     div.stButton > button { background-color: #1e1e1e; color: #FFD700; border-radius: 12px; width: 100%; height: 45px; font-weight: bold; border: 1px solid #FFD700; transition: 0.3s; }  
     div.stButton > button:hover { background-color: #FFD700; color: #000; }  
     .lab-box { border: 1px solid #333; padding: 20px; border-radius: 15px; background: #0e1117; margin-bottom: 20px; }  
-    .limit-box { padding:10px; border-radius:10px; background:#262730; border:1px solid #FFD700; text-align:center; margin-bottom:10px; }
+    .limit-info { padding:10px; background:#262730; border-radius:10px; border:1px solid #FFD700; text-align:center; margin-bottom:15px; font-weight:bold; }
 </style>  """, unsafe_allow_html=True)
 
 # -----------------------
-# 5. Helper Functions (Database Logic)
+# 5. Helper Functions (Logic)
 # -----------------------
-def check_user_limit(username):
+
+def check_user_access(username):
+    """දිනපතා සීමාව සහ Premium තත්ත්වය පරීක්ෂා කිරීම"""
     today = str(datetime.date.today())
     try:
         res = supabase.table("user_usage").select("*").eq("username", username).execute()
         if not res.data:
-            supabase.table("user_usage").insert({"username": username, "last_date": today, "image_count": 0, "is_premium": False}).execute()
+            # අලුත් යූසර් කෙනෙක් නම් ඇතුළත් කිරීම
+            supabase.table("user_usage").insert({
+                "username": username, "last_date": today, "image_count": 0, "is_premium": False
+            }).execute()
             return True, 0, False
         
-        user = res.data[0]
-        is_premium = user.get('is_premium', False)
-        if is_premium: return True, 0, True
+        user_data = res.data[0]
+        is_vip = user_data.get('is_premium', False)
         
-        if user['last_date'] != today:
+        if is_vip: return True, 0, True # Premium නම් සීමාවක් නැත
+        
+        if user_data['last_date'] != today:
+            # අලුත් දවසක් නම් count එක reset කිරීම
             supabase.table("user_usage").update({"last_date": today, "image_count": 0}).eq("username", username).execute()
             return True, 0, False
         
-        return (user['image_count'] < 5), user['image_count'], False
-    except: return True, 0, False # Error එකක් ආවොත් allow කරනවා
+        return (user_data['image_count'] < 5), user_data['image_count'], False
+    except:
+        return True, 0, False # Error එකක් ආවොත් allow කරනවා
 
-def update_usage(username, current_count):
+def update_usage_count(username, current_count):
+    """ෆොටෝ එකක් හැදූ පසු count එක වැඩි කිරීම"""
     try:
         supabase.table("user_usage").update({"image_count": current_count + 1}).eq("username", username).execute()
     except: pass
@@ -98,21 +106,9 @@ def web_search_tool(query):
         with DDGS() as ddgs:
             results = [r for r in ddgs.text(query, max_results=3)]
             if results:
-                context = "\n".join([f"Source: {r['title']} - {r['body']}" for r in results])
-                return context
+                return "\n".join([f"Source: {r['title']} - {r['body']}" for r in results])
     except: return ""
     return ""
-
-def generate_video_robust(prompt):
-    models = ["guoyww/AnimateDiff", "cerspense/zeroscope_v2_576w"]
-    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-    for model_id in models:
-        try:
-            API_URL = f"https://api-inference.huggingface.co/models/{model_id}"
-            response = requests.post(API_URL, headers=headers, json={"inputs": prompt}, timeout=60)
-            if response.status_code == 200: return response.content
-        except: continue
-    return None
 
 # -----------------------
 # 6. Login System
@@ -131,38 +127,43 @@ if not st.session_state.logged_in:
     st.stop()
 
 # -----------------------
-# 7. Sidebar Control
+# 7. Sidebar & Payment Control
 # -----------------------
 with st.sidebar:
     st.image("https://img.icons8.com/fluent/100/000000/artificial-intelligence.png", width=70)
     st.title("Alpha Control")
     st.markdown(f"Operator: **{st.session_state.user_full_name}**")
     
-    # Check Limit for Sidebar Info
-    can_gen, count, is_vip = check_user_limit(st.session_state.user_full_name)
-    status_text = "💎 PREMIUM (Unlimited)" if is_vip else f"📊 Daily Photos: {count}/5"
-    st.markdown(f'<div class="limit-box">{status_text}</div>', unsafe_allow_html=True)
+    # දත්ත ගබඩාවෙන් තොරතුරු ලබා ගැනීම
+    can_gen, img_count, is_premium = check_user_access(st.session_state.user_full_name)
     
-    if not is_vip:
-        st.subheader("Upgrade to Premium")
+    # සීමාව පෙන්වීම
+    status_label = "💎 PREMIUM (Unlimited)" if is_premium else f"📊 Daily Photos: {img_count}/5"
+    st.markdown(f'<div class="limit-info">{status_label}</div>', unsafe_allow_html=True)
+    
+    # Premium නොවේ නම් පේමන්ට් බටන් එක පෙන්වීම
+    if not is_premium:
+        st.subheader("Get Premium Upgrade")
+        # PayHere Sandbox URL (පසුව Live URL එකට මාරු කරන්න)
         pay_html = f"""
         <form method="post" action="https://sandbox.payhere.lk/pay/checkout">   
-            <input type="hidden" name="merchant_id" value="1211149">
+            <input type="hidden" name="merchant_id" value="1211149"> 
             <input type="hidden" name="return_url" value="https://alpha-ai.streamlit.app">
             <input type="hidden" name="cancel_url" value="https://alpha-ai.streamlit.app">
             <input type="hidden" name="notify_url" value="https://your-api.com/notify">  
-            <input type="hidden" name="order_id" value="UPGRADE_{st.session_state.user_full_name}">
-            <input type="hidden" name="items" value="Alpha Premium">
+            <input type="hidden" name="order_id" value="PREMIUM_{st.session_state.user_full_name}">
+            <input type="hidden" name="items" value="Alpha AI Premium">
             <input type="hidden" name="currency" value="LKR">
             <input type="hidden" name="amount" value="500.00">  
             <input type="hidden" name="first_name" value="{st.session_state.user_full_name}">
-            <input type="hidden" name="last_name" value="Operator">
+            <input type="hidden" name="last_name" value="User">
             <input type="hidden" name="email" value="user@example.com">
             <input type="hidden" name="phone" value="0771234567">
             <input type="hidden" name="address" value="Sri Lanka">
             <input type="hidden" name="city" value="Bandarawela">
             <input type="hidden" name="country" value="Sri Lanka">
-            <input type="submit" value="BUY PREMIUM - RS.500" style="background:#FFD700; color:black; border:none; padding:10px; border-radius:10px; font-weight:bold; width:100%; cursor:pointer;">
+            <input type="submit" value="UPGRADE TO PREMIUM - RS.500" 
+                style="background:#FFD700; color:black; border:none; padding:10px; border-radius:10px; font-weight:bold; width:100%; cursor:pointer;">
         </form>
         """
         st.components.v1.html(pay_html, height=50)
@@ -183,33 +184,36 @@ st.markdown(f'<div class="premium-banner">⚡ ALPHA AI ULTIMATE | Created by Has
 tab_img, tab_vid = st.tabs(["🖼 Image Generation Lab", "🎬 Cinema Lab"])
 
 with tab_img:
-    with st.container():
-        st.markdown('<div class="lab-box">', unsafe_allow_html=True)
-        col1, col2 = st.columns([3, 1])
-        img_p = col1.text_input("Describe image:", key="img_prompt")
-        img_model = st.selectbox("Model:", ["flux", "turbo", "zimage"], key="img_model_select")  
-        
-        if col2.button("Generate Photo"):  
-            if img_p:  
-                can_gen, count, is_vip = check_user_limit(st.session_state.user_full_name)
-                if can_gen:
-                    with st.spinner("Alpha is painting... 🖌️"):  
-                        try:  
-                            seed = random.randint(1, 1000000)  
-                            url = f"https://gen.pollinations.ai/image/{urllib.parse.quote(img_p)}?width=1024&height=1024&seed={seed}&model={img_model}&nologo=true"  
-                            response = requests.get(url, timeout=60)  
-                            if response.status_code == 200:  
-                                st.image(response.content, use_container_width=True)  
-                                st.download_button("Download 📥", response.content, f"alpha_{seed}.png")
-                                if not is_vip: update_usage(st.session_state.user_full_name, count)
+    st.markdown('<div class="lab-box">', unsafe_allow_html=True)
+    col1, col2 = st.columns([3, 1])
+    img_p = col1.text_input("Describe image:", key="img_prompt")
+    img_model = st.selectbox("Model:", ["flux", "turbo", "zimage"], key="img_model_select")  
+    
+    if col2.button("Generate Photo"):  
+        if img_p:  
+            # සීමාව පරීක්ෂා කිරීම
+            can_gen, current_count, is_vip = check_user_access(st.session_state.user_full_name)
+            
+            if can_gen:
+                with st.spinner("Alpha is painting... 🖌️"):  
+                    try:  
+                        seed = random.randint(1, 1000000)  
+                        url = f"https://gen.pollinations.ai/image/{urllib.parse.quote(img_p)}?width=1024&height=1024&seed={seed}&model={img_model}&nologo=true"  
+                        response = requests.get(url, timeout=60)  
+                        if response.status_code == 200:  
+                            st.image(response.content, caption=f"Created for {st.session_state.user_full_name}", use_container_width=True)  
+                            st.download_button("Download 📥", response.content, f"alpha_{seed}.png")
+                            # සාමාන්‍ය යූසර් කෙනෙක් නම් විතරක් count එක වැඩි කිරීම
+                            if not is_vip:
+                                update_usage_count(st.session_state.user_full_name, current_count)
                                 st.rerun()
-                        except Exception as e: st.error(f"Error: {e}")  
-                else:
-                    st.error("🚫 Daily limit reached (5/5). Upgrade to Premium for Unlimited Access!")
-        st.markdown('</div>', unsafe_allow_html=True)
+                    except Exception as e: st.error(f"Error: {e}")  
+            else:
+                st.error("🚫 Daily free limit (5/5) reached! Upgrade to Premium for unlimited photos.")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # -----------------------
-# 9. Hybrid Intelligence Chat (Logic remains same)
+# 9. Hybrid Intelligence Chat
 # -----------------------
 st.write("### 💬 Heartfelt Conversation")
 for msg in st.session_state.messages:
@@ -220,10 +224,36 @@ user_input = st.chat_input("State your command, Master...")
 if user_input:
     st.session_state.messages.append({"role":"user","content":user_input})
     with st.chat_message("user"): st.markdown(user_input)
+    
     with st.chat_message("assistant"):
-        # ... (ඔයාගේ chat logic එක මෙතනට දාන්න) ...
-        st.write("Alpha is thinking...") 
-        # (කෝඩ් එක දිග වැඩි නිසා කෙටි කළා, ඔයාගේ පරණ chat කෝඩ් එක මෙතනට දාන්න)
+        with st.spinner("Alpha is thinking..."):
+            res_placeholder = st.empty()
+            search_context = web_search_tool(user_input) if web_search_on else ""
+            
+            sys_msg = f"Your name is Alpha AI. Developed by Hasith from Bandarawela Central College. Search context: {search_context}"
+            
+            try:
+                # Chat logic (Llama/DeepSeek) - කෙටියෙන්
+                if mode == "Ultra":
+                    # OpenRouter API call මෙතනට
+                    full_res = "Alpha Ultra is ready to assist you!" 
+                else:
+                    # Groq API call
+                    stream = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[{"role": "system", "content": sys_msg}] + st.session_state.messages[-10:],
+                        stream=True
+                    )
+                    full_res = ""
+                    for chunk in stream:
+                        if chunk.choices[0].delta.content:
+                            full_res += chunk.choices[0].delta.content
+                            res_placeholder.markdown(full_res + "▌")
+                
+                res_placeholder.markdown(full_res)
+                if voice_on: asyncio.run(speak_alpha(full_res))
+                st.session_state.messages.append({"role":"assistant","content":full_res})
+            except Exception as e: st.error(f"Brain Error: {e}")
 
 st.markdown("---")
-st.caption("Alpha AI Project | Bandarawela Central College | Created by Hasith")
+st.caption("Alpha AI Project | Created by Hasith")
