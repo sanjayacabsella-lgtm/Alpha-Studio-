@@ -32,8 +32,19 @@ CLOUDFLARE_ACCOUNT_ID = "2974b71a6d3dab87c1216cfd085422c5"
 CLOUDFLARE_API_TOKEN = "cfut_9fnpPTBN8loKK136ol2v4vJ8mMolXDM4HcvQ165vc7b9f2a1"
 
 # Clients Initialize
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-groq_client = Groq(api_key=GROQ_API_KEY)
+# Note: Safety check for Supabase secrets
+if SUPABASE_URL and SUPABASE_KEY:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+else:
+    st.error("Supabase credentials are missing in secrets.")
+    st.stop()
+
+if GROQ_API_KEY:
+    groq_client = Groq(api_key=GROQ_API_KEY)
+else:
+    st.error("Groq API key is missing in secrets.")
+    st.stop()
+
 hf_client = InferenceClient(token=HF_TOKEN)
 
 # -----------------------
@@ -42,6 +53,8 @@ hf_client = InferenceClient(token=HF_TOKEN)
 if "messages" not in st.session_state: st.session_state.messages=[]
 if "logged_in" not in st.session_state: st.session_state.logged_in=False
 if "user_full_name" not in st.session_state: st.session_state.user_full_name=None
+# Keep generated image info in session state to persist reruns
+if "generated_image" not in st.session_state: st.session_state.generated_image = None
 
 # -----------------------
 # 4. Custom UI Styling
@@ -101,7 +114,7 @@ def web_search_tool(query):
 
 def generate_video_robust(prompt):
     models = ["guoyww/AnimateDiff", "cerspense/zeroscope_v2_576w"]
-    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+    headers = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
     for model_id in models:
         try:
             API_URL = f"https://api-inference.huggingface.co/models/{model_id}"
@@ -189,6 +202,9 @@ with tab_img:
         "Ultra Realistic": {"model": "@cf/bytedance/stable-diffusion-xl-lightning", "prefix": "photorealistic, 8k, realistic, highly detailed, "}
     }
     
+    # Placeholder to show image so it persists during current run
+    image_placeholder = st.empty()
+    
     if st.button("Generate Masterpiece 🖌️"):  
         if img_p:  
             can_gen, current_count, is_premium = check_user_access(st.session_state.user_full_name)
@@ -208,17 +224,34 @@ with tab_img:
                         
                         if response.status_code == 200:
                             img_data = response.content
-                            st.image(img_data, use_container_width=True, caption=f"Alpha Gen: {art_style}")
-                            st.download_button("Download Image 📥", img_data, f"alpha_{art_style}.png")
+                            
+                            # Update session state to persist image on future chat reruns
+                            st.session_state.generated_image = {
+                                "data": img_data,
+                                "caption": f"Alpha Gen: {art_style}"
+                            }
                             
                             if not is_premium: update_usage(st.session_state.user_full_name, current_count)
-                            st.rerun()
+                            
+                            # Note: REMOVED st.rerun() here which caused the image to flash and disappear.
+                            # Instead, Streamlit will naturally rerun and show the image via session state below.
                         else:
                             st.error(f"Cloudflare Error: {response.status_code}")
                     except Exception as e:
                         st.error(f"Process Error: {e}")
             else:
                 st.error("🚫 Daily free limit (5/5) reached! Please upgrade to Premium.")
+        else:
+            st.warning("Describe your vision first.")
+
+    # Always show generated image if it exists in session state
+    if st.session_state.generated_image:
+        image_data = st.session_state.generated_image["data"]
+        caption = st.session_state.generated_image["caption"]
+        with image_placeholder.container():
+            st.image(image_data, use_container_width=True, caption=caption)
+            st.download_button("Download Image 📥", image_data, f"alpha_{caption.replace(': ','_')}.png", mime="image/png")
+            
     st.markdown('</div>', unsafe_allow_html=True)
 
 with tab_vid:
