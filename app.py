@@ -20,13 +20,16 @@ st.set_page_config(page_title="Alpha AI | Created by Hasith", layout="wide", pag
 st.markdown('<meta name="google-site-verification" content="W6jIGzCkkez2SpjygP6z0dJfinBNALmw2Hv-MkJvFB0" />', unsafe_allow_html=True)
 
 # -----------------------
-# 2. API & Database Setup (Secrets)
+# 2. API & Database Setup (Secrets & Direct Keys)
 # -----------------------
 SUPABASE_URL = st.secrets.get("SUPABASE_URL")
 SUPABASE_KEY = st.secrets.get("SUPABASE_KEY")
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 HF_TOKEN = st.secrets.get("HF_TOKEN")
-POLLINATIONS_KEY = st.secrets.get("POLLINATIONS_API_KEY")
+
+# Cloudflare Credentials (ඔබ ලබාදුන් තොරතුරු)
+CLOUDFLARE_ACCOUNT_ID = "2974b71a6d3dab87c1216cfd085422c5"
+CLOUDFLARE_API_TOKEN = "cfut_9fnpPTBN8loKK136ol2v4vJ8mMolXDM4HcvQ165vc7b9f2a1"
 
 # Clients Initialize
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -39,10 +42,6 @@ hf_client = InferenceClient(token=HF_TOKEN)
 if "messages" not in st.session_state: st.session_state.messages=[]
 if "logged_in" not in st.session_state: st.session_state.logged_in=False
 if "user_full_name" not in st.session_state: st.session_state.user_full_name=None
-
-# පින්තූරය රඳවා තබා ගැනීමට
-if "generated_image" not in st.session_state: st.session_state.generated_image = None
-if "generated_seed" not in st.session_state: st.session_state.generated_seed = None
 
 # -----------------------
 # 4. Custom UI Styling
@@ -61,9 +60,6 @@ st.markdown("""
 # 5. Helper Functions
 # -----------------------
 def check_user_access(username):
-    # Developer හට Unlimited ලබා දීම
-    if username == "Hasith": return True, 0, True
-    
     today = str(datetime.date.today())
     try:
         res = supabase.table("user_usage").select("*").eq("username", username).execute()
@@ -103,6 +99,17 @@ def web_search_tool(query):
     except: return ""
     return ""
 
+def generate_video_robust(prompt):
+    models = ["guoyww/AnimateDiff", "cerspense/zeroscope_v2_576w"]
+    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+    for model_id in models:
+        try:
+            API_URL = f"https://api-inference.huggingface.co/models/{model_id}"
+            response = requests.post(API_URL, headers=headers, json={"inputs": prompt}, timeout=60)
+            if response.status_code == 200: return response.content
+        except: continue
+    return None
+
 # -----------------------
 # 6. Login System
 # -----------------------
@@ -119,14 +126,38 @@ if not st.session_state.logged_in:
     st.stop()
 
 # -----------------------
-# 7. Sidebar
+# 7. Sidebar & Payment
 # -----------------------
 with st.sidebar:
+    st.image("https://img.icons8.com/fluent/100/000000/artificial-intelligence.png", width=70)
     st.title("Alpha Control")
     can_gen, count, is_vip = check_user_access(st.session_state.user_full_name)
     status_txt = "💎 PREMIUM" if is_vip else f"📊 Daily Photos: {count}/5"
     st.markdown(f'<div class="limit-box">{status_txt}</div>', unsafe_allow_html=True)
     
+    if not is_vip:
+        pay_html = f"""
+        <form method="post" action="https://sandbox.payhere.lk/pay/checkout">   
+            <input type="hidden" name="merchant_id" value="1211149">
+            <input type="hidden" name="return_url" value="https://alpha-ai.streamlit.app">
+            <input type="hidden" name="cancel_url" value="https://alpha-ai.streamlit.app">
+            <input type="hidden" name="notify_url" value="https://your-api.com/notify">  
+            <input type="hidden" name="order_id" value="PREMIUM_{st.session_state.user_full_name}">
+            <input type="hidden" name="items" value="Alpha Premium Upgrade">
+            <input type="hidden" name="currency" value="LKR">
+            <input type="hidden" name="amount" value="500.00">  
+            <input type="hidden" name="first_name" value="{st.session_state.user_full_name}">
+            <input type="hidden" name="last_name" value="Operator">
+            <input type="hidden" name="email" value="user@example.com">
+            <input type="hidden" name="phone" value="0771234567">
+            <input type="hidden" name="address" value="Sri Lanka">
+            <input type="hidden" name="city" value="Bandarawela">
+            <input type="hidden" name="country" value="Sri Lanka">
+            <input type="submit" value="BUY PREMIUM - RS.500" style="background:#FFD700; color:black; border:none; padding:10px; border-radius:10px; font-weight:bold; width:100%; cursor:pointer;">
+        </form>
+        """
+        st.components.v1.html(pay_html, height=50)
+
     mode = st.radio("Intelligence Level", ["Normal", "Pro", "Ultra"])
     web_search_on = st.checkbox("Web Search", value=False)
     voice_on = st.checkbox("Voice Output", value=True)
@@ -137,42 +168,69 @@ with st.sidebar:
 st.markdown(f'<div class="premium-banner">⚡ ALPHA AI ULTIMATE | Created by Hasith</div>', unsafe_allow_html=True)
 
 # -----------------------
-# 8. AI Multimodal Labs
+# 8. AI Multimodal Labs (Image & Cinema)
 # -----------------------
-tab_img, tab_vid = st.tabs(["🖼 Image Generation Lab", "🎬 Cinema Lab"])
+tab_img, tab_vid = st.tabs(["🖼 Cloudflare Image Lab", "🎬 Cinema Lab"])
 
 with tab_img:
     st.markdown('<div class="lab-box">', unsafe_allow_html=True)
     col1, col2 = st.columns([3, 1])
-    img_p = col1.text_input("Describe image:", key="img_prompt")
-    # ඔයා එවපු ලිස්ට් එකේ තියෙන ලාභම (1 pollen models) මෙතනට ඇතුළත් කළා
-    img_model = st.selectbox("Model:", ["flux-schnell", "turbo", "zimage"], index=0)  
+    img_p = col1.text_input("Describe your vision:", key="cloud_img_prompt")
     
-    if col2.button("Generate Photo"):  
+    # ඔබ ඉල්ලූ Styles හතර
+    art_style = col2.selectbox("Art Style:", 
+                               ["Cartoon Style", "Comic Book", "Anime Style", "Ultra Realistic"])
+    
+    # Styles සැකසුම්
+    style_config = {
+        "Cartoon Style": {"model": "@cf/lykon/dreamshaper-8-lcm", "prefix": "3d render, pixar style, cartoon, "},
+        "Comic Book": {"model": "@cf/lykon/dreamshaper-8-lcm", "prefix": "comic book style, bold lines, illustration, "},
+        "Anime Style": {"model": "@cf/lykon/dreamshaper-8-lcm", "prefix": "anime style, studio ghibli, 2d, "},
+        "Ultra Realistic": {"model": "@cf/bytedance/stable-diffusion-xl-lightning", "prefix": "photorealistic, 8k, realistic, highly detailed, "}
+    }
+    
+    if st.button("Generate Masterpiece 🖌️"):  
         if img_p:  
             can_gen, current_count, is_premium = check_user_access(st.session_state.user_full_name)
             if can_gen:
-                with st.spinner("Alpha is painting... 🖌️"):  
-                    try:  
-                        seed = random.randint(1, 2147483647)  
-                        headers = {"Authorization": f"Bearer {POLLINATIONS_KEY}"}
-                        # URL එකේ model එක නිවැරදිව පරාමිතියක් ලෙස යැවීම
-                        url = f"https://gen.pollinations.ai/image/{urllib.parse.quote(img_p)}?width=1024&height=1024&seed={seed}&model={img_model}&nologo=true"  
-                        response = requests.get(url, headers=headers, timeout=60)  
+                with st.spinner(f"Alpha is crafting your {art_style}..."):  
+                    try:
+                        cfg = style_config[art_style]
+                        API_URL = f"https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/run/{cfg['model']}"
+                        headers = {"Authorization": f"Bearer {CLOUDFLARE_API_TOKEN}"}
                         
-                        if response.status_code == 200: 
-                            st.session_state.generated_image = response.content
-                            st.session_state.generated_seed = seed
+                        payload = {
+                            "prompt": cfg['prefix'] + img_p,
+                            "negative_prompt": "blurry, low quality, distorted, bad anatomy"
+                        }
+                        
+                        response = requests.post(API_URL, headers=headers, json=payload, timeout=60)
+                        
+                        if response.status_code == 200:
+                            img_data = response.content
+                            st.image(img_data, use_container_width=True, caption=f"Alpha Gen: {art_style}")
+                            st.download_button("Download Image 📥", img_data, f"alpha_{art_style}.png")
+                            
                             if not is_premium: update_usage(st.session_state.user_full_name, current_count)
-                        elif response.status_code == 402:
-                            st.error("⚠️ Pollen Balance Low! Please check your Pollinations account.")
-                        else: st.error(f"Error: {response.status_code}")
-                    except Exception as e: st.error(f"Error: {e}")  
-            else: st.error("🚫 Daily free limit (5/5) reached!")
+                            st.rerun()
+                        else:
+                            st.error(f"Cloudflare Error: {response.status_code}")
+                    except Exception as e:
+                        st.error(f"Process Error: {e}")
+            else:
+                st.error("🚫 Daily free limit (5/5) reached! Please upgrade to Premium.")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    if st.session_state.generated_image:
-        st.image(st.session_state.generated_image, use_container_width=True)  
-        st.download_button("Download 📥", st.session_state.generated_image, f"alpha_{st.session_state.generated_seed}.png", "image/png")
+with tab_vid:
+    st.markdown('<div class="lab-box">', unsafe_allow_html=True)
+    v_col1, v_col2 = st.columns([3, 1])
+    vid_p = v_col1.text_input("Describe video scene:", key="vid_prompt")
+    if v_col2.button("Generate Video"):
+        if vid_p:
+            with st.spinner("Alpha is directing... 🎬"):
+                vid_data = generate_video_robust(vid_p)
+                if vid_data: st.video(vid_data)
+                else: st.error("Cinema Lab is currently busy.")
     st.markdown('</div>', unsafe_allow_html=True)
 
 # -----------------------
@@ -190,7 +248,8 @@ if user_input:
         with st.spinner("Alpha is thinking..."):
             res_placeholder = st.empty()
             search_context = web_search_tool(user_input) if web_search_on else ""
-            sys_msg = f"Your name is Alpha AI. Developed by Hasith. Search context: {search_context}"
+            sys_msg = f"Your name is Alpha AI. Developed by Hasith from Bandarawela Central College. Search context: {search_context}"
+            
             try:
                 stream = groq_client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
@@ -205,7 +264,7 @@ if user_input:
                 res_placeholder.markdown(full_res)
                 if voice_on: asyncio.run(speak_alpha(full_res))
                 st.session_state.messages.append({"role":"assistant","content":full_res})
-            except Exception as e: st.error(f"Error: {e}")
+            except Exception as e: st.error(f"Chat Error: {e}")
 
 st.markdown("---")
-st.caption("Alpha AI Project | Created by Hasith")
+st.caption("Alpha AI Project | Bandarawela Central College | Created by Hasith")
