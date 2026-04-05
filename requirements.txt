@@ -6,3 +6,4 @@ pillow
 edge-tts
 duckduckgo-search
 supabase
+gTTS
