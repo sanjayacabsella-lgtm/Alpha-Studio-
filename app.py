@@ -21,14 +21,13 @@ st.set_page_config(page_title="Alpha AI | Created by Hasith", layout="wide", pag
 st.markdown('<meta name="google-site-verification" content="W6jIGzCkkez2SpjygP6z0dJfinBNALmw2Hv-MkJvFB0" />', unsafe_allow_html=True)
 
 # -----------------------
-# 2. API & Database Setup (Secrets & Direct Keys)
+# 2. API & Database Setup
 # -----------------------
 SUPABASE_URL = st.secrets.get("SUPABASE_URL")
 SUPABASE_KEY = st.secrets.get("SUPABASE_KEY")
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 HF_TOKEN = st.secrets.get("HF_TOKEN")
 
-# Cloudflare Credentials
 CLOUDFLARE_ACCOUNT_ID = "2974b71a6d3dab87c1216cfd085422c5"
 CLOUDFLARE_API_TOKEN = "cfut_9fnpPTBN8loKK136ol2v4vJ8mMolXDM4HcvQ165vc7b9f2a1"
 
@@ -36,13 +35,13 @@ CLOUDFLARE_API_TOKEN = "cfut_9fnpPTBN8loKK136ol2v4vJ8mMolXDM4HcvQ165vc7b9f2a1"
 if SUPABASE_URL and SUPABASE_KEY:
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 else:
-    st.error("Supabase credentials are missing in secrets.")
+    st.error("Supabase credentials are missing!")
     st.stop()
 
 if GROQ_API_KEY:
     groq_client = Groq(api_key=GROQ_API_KEY)
 else:
-    st.error("Groq API key is missing in secrets.")
+    st.error("Groq API key is missing!")
     st.stop()
 
 hf_client = InferenceClient(token=HF_TOKEN)
@@ -70,7 +69,7 @@ st.markdown("""
 </style>  """, unsafe_allow_html=True)
 
 # -----------------------
-# 5. Helper Functions
+# 5. Helper Functions (Fixed Counters)
 # -----------------------
 def check_user_access(username, req_type="image"):
     today = str(datetime.date.today())
@@ -96,8 +95,10 @@ def check_user_access(username, req_type="image"):
 def update_usage(username, current_count, req_type="image"):
     try:
         field = "image_count" if req_type == "image" else "voice_count"
-        supabase.table("user_usage").update({field: current_count + 1}).eq("username", username).execute()
-    except: pass
+        new_val = int(current_count) + 1
+        supabase.table("user_usage").update({field: new_val}).eq("username", username).execute()
+        return True
+    except: return False
 
 async def speak_alpha(text):
     try:
@@ -145,7 +146,7 @@ if not st.session_state.logged_in:
     st.stop()
 
 # -----------------------
-# 7. Sidebar & Payment
+# 7. Sidebar
 # -----------------------
 with st.sidebar:
     st.image("https://img.icons8.com/fluent/100/000000/artificial-intelligence.png", width=70)
@@ -159,29 +160,6 @@ with st.sidebar:
         st.markdown(f'<div class="limit-box">🖼 Photos: {img_count}/5</div>', unsafe_allow_html=True)
         st.markdown(f'<div class="limit-box">🎙️ Voices: {voice_count}/6</div>', unsafe_allow_html=True)
     
-    if not is_vip:
-        pay_html = f"""
-        <form method="post" action="https://sandbox.payhere.lk/pay/checkout">   
-            <input type="hidden" name="merchant_id" value="1211149">
-            <input type="hidden" name="return_url" value="https://alpha-ai.streamlit.app">
-            <input type="hidden" name="cancel_url" value="https://alpha-ai.streamlit.app">
-            <input type="hidden" name="notify_url" value="https://your-api.com/notify">  
-            <input type="hidden" name="order_id" value="PREMIUM_{st.session_state.user_full_name}">
-            <input type="hidden" name="items" value="Alpha Premium Upgrade">
-            <input type="hidden" name="currency" value="LKR">
-            <input type="hidden" name="amount" value="500.00">  
-            <input type="hidden" name="first_name" value="{st.session_state.user_full_name}">
-            <input type="hidden" name="last_name" value="Operator">
-            <input type="hidden" name="email" value="user@example.com">
-            <input type="hidden" name="phone" value="0771234567">
-            <input type="hidden" name="address" value="Sri Lanka">
-            <input type="hidden" name="city" value="Bandarawela">
-            <input type="hidden" name="country" value="Sri Lanka">
-            <input type="submit" value="BUY PREMIUM - RS.500" style="background:#FFD700; color:black; border:none; padding:10px; border-radius:10px; font-weight:bold; width:100%; cursor:pointer;">
-        </form>
-        """
-        st.components.v1.html(pay_html, height=50)
-
     mode = st.radio("Intelligence Level", ["Normal", "Pro", "Ultra"])
     web_search_on = st.checkbox("Web Search", value=False)
     voice_on = st.checkbox("Voice Output", value=True)
@@ -207,7 +185,7 @@ with tab_img:
         "Anime Style": {"model": "@cf/lykon/dreamshaper-8-lcm", "prefix": "anime style, studio ghibli, 2d, "},
         "Ultra Realistic": {"model": "@cf/bytedance/stable-diffusion-xl-lightning", "prefix": "photorealistic, 8k, realistic, highly detailed, "}
     }
-    image_display = st.empty()
+    
     if st.button("Generate Masterpiece 🖌️"):  
         if img_p:  
             can_gen, current_count, is_premium = check_user_access(st.session_state.user_full_name, "image")
@@ -217,20 +195,21 @@ with tab_img:
                         cfg = style_config[art_style]
                         API_URL = f"https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/run/{cfg['model']}"
                         headers = {"Authorization": f"Bearer {CLOUDFLARE_API_TOKEN}"}
-                        payload = {"prompt": cfg['prefix'] + img_p, "negative_prompt": "blurry, low quality, distorted, bad anatomy"}
+                        payload = {"prompt": cfg['prefix'] + img_p, "negative_prompt": "blurry, low quality, distorted"}
                         response = requests.post(API_URL, headers=headers, json=payload, timeout=60)
+                        
                         if response.status_code == 200:
-                            img_data = response.content
-                            st.session_state.generated_image = {"data": img_data, "caption": f"Alpha Gen: {art_style}"}
-                            if not is_premium: update_usage(st.session_state.user_full_name, current_count, "image")
-                        else: st.error(f"Cloudflare Error: {response.status_code}")
-                    except Exception as e: st.error(f"Process Error: {e}")
-            else: st.error("🚫 Daily free limit (5/5) reached! Upgrade to Premium.")
+                            st.session_state.generated_image = {"data": response.content, "caption": f"Alpha Gen: {art_style}"}
+                            if not is_premium:
+                                update_usage(st.session_state.user_full_name, current_count, "image")
+                            st.rerun() # Refresh to update sidebar count
+                        else: st.error("API Error. Please try again.")
+                    except Exception as e: st.error(f"Error: {e}")
+            else: st.error("🚫 Daily free limit (5/5) reached!")
     
     if st.session_state.generated_image:
-        with image_display.container():
-            st.image(st.session_state.generated_image["data"], use_container_width=True, caption=st.session_state.generated_image["caption"])
-            st.download_button("Download Image 📥", st.session_state.generated_image["data"], "alpha_gen.png", mime="image/png")
+        st.image(st.session_state.generated_image["data"], use_container_width=True, caption=st.session_state.generated_image["caption"])
+        st.download_button("Download Image 📥", st.session_state.generated_image["data"], "alpha_gen.png", mime="image/png")
     st.markdown('</div>', unsafe_allow_html=True)
 
 with tab_vid:
@@ -247,24 +226,17 @@ with tab_vid:
 
 with tab_voice:
     st.markdown('<div class="lab-box">', unsafe_allow_html=True)
-    st.subheader("🎙️ Alpha Voice Studio")
-    v_text = st.text_area("කථා කිරීමට අවශ්‍ය දේ මෙහි ලියන්න (Type text to speak):", height=100)
-    
+    v_text = st.text_area("Type text to speak:", height=100)
     vc1, vc2 = st.columns(2)
-    lang_options = {
-        "Sinhala (සිංහල)": "si", "English": "en", "Hindi": "hi", "Tamil": "ta", 
-        "French": "fr", "German": "de", "Japanese": "ja", "Korean": "ko", "Spanish": "es", "Italian": "it"
-    }
-    selected_lang = vc1.selectbox("භාෂාව තෝරන්න (Select Language):", list(lang_options.keys()))
-    gender = vc2.selectbox("කටහඬ (Gender):", ["Male (පුරුෂ)", "Female (ස්ත්‍රී)"])
-    
-    audio_display = st.empty()
+    lang_options = {"Sinhala (සිංහල)": "si", "English": "en", "Tamil": "ta", "Hindi": "hi"}
+    selected_lang = vc1.selectbox("Select Language:", list(lang_options.keys()))
+    gender = vc2.selectbox("Gender:", ["Male", "Female"])
     
     if st.button("Speak Now 🔊"):
         if v_text:
             can_v, v_current, is_p = check_user_access(st.session_state.user_full_name, "voice")
             if can_v:
-                with st.spinner("Alpha is preparing the voice..."):
+                with st.spinner("Preparing voice..."):
                     try:
                         audio_data_final = None
                         if lang_options[selected_lang] == "si":
@@ -278,35 +250,24 @@ with tab_voice:
                                 "Tamil": {"Male": "ta-IN-ValluvarNeural", "Female": "ta-IN-PallaviNeural"},
                                 "Hindi": {"Male": "hi-IN-MadhurNeural", "Female": "hi-IN-SwaraNeural"}
                             }
-                            lang_code = lang_options[selected_lang]
-                            if selected_lang in voice_map:
-                                g_key = "Male" if "Male" in gender else "Female"
-                                selected_voice = voice_map[selected_lang][g_key]
-                                async def run_voice():
-                                    communicate = edge_tts.Communicate(v_text, selected_voice)
-                                    audio_data = b""
-                                    async for chunk in communicate.stream():
-                                        if chunk["type"] == "audio": audio_data += chunk["data"]
-                                    return audio_data
-                                audio_data_final = asyncio.run(run_voice())
-                            else:
-                                tts = gTTS(text=v_text, lang=lang_code)
-                                fp = io.BytesIO()
-                                tts.write_to_fp(fp)
-                                audio_data_final = fp.getvalue()
+                            selected_voice = voice_map.get(selected_lang, {}).get(gender, "en-US-SteffanNeural")
+                            async def run_voice():
+                                communicate = edge_tts.Communicate(v_text, selected_voice)
+                                data = b""
+                                async for chunk in communicate.stream():
+                                    if chunk["type"] == "audio": data += chunk["data"]
+                                return data
+                            audio_data_final = asyncio.run(run_voice())
                         
                         if audio_data_final:
                             st.session_state.generated_audio = audio_data_final
                             if not is_p: update_usage(st.session_state.user_full_name, v_current, "voice")
-                            st.success("හඬ සාර්ථකව නිපදවන ලදී!")
+                            st.rerun()
                     except Exception as e: st.error(f"Voice Error: {e}")
-            else: st.error("🚫 Voice free limit (6/6) reached! Upgrade to Premium.")
-        else: st.warning("කරුණාකර පෙළක් ඇතුළත් කරන්න.")
+            else: st.error("🚫 Voice free limit (6/6) reached!")
     
     if st.session_state.generated_audio:
-        with audio_display.container():
-            st.audio(st.session_state.generated_audio)
-            
+        st.audio(st.session_state.generated_audio)
     st.markdown('</div>', unsafe_allow_html=True)
 
 # -----------------------
