@@ -54,6 +54,7 @@ if "messages" not in st.session_state: st.session_state.messages=[]
 if "logged_in" not in st.session_state: st.session_state.logged_in=False
 if "user_full_name" not in st.session_state: st.session_state.user_full_name=None
 if "generated_image" not in st.session_state: st.session_state.generated_image = None
+if "generated_audio" not in st.session_state: st.session_state.generated_audio = None
 
 # -----------------------
 # 4. Custom UI Styling
@@ -71,9 +72,9 @@ st.markdown("""
 # -----------------------
 # 5. Helper Functions
 # -----------------------
-def check_user_access(username, type="image"):
+def check_user_access(username, req_type="image"):
     today = str(datetime.date.today())
-    limit = 5 if type == "image" else 6 # පින්තූර 5යි, හඬවල් 6යි
+    limit = 5 if req_type == "image" else 6
     try:
         res = supabase.table("user_usage").select("*").eq("username", username).execute()
         if not res.data:
@@ -88,13 +89,13 @@ def check_user_access(username, type="image"):
             supabase.table("user_usage").update({"last_date": today, "image_count": 0, "voice_count": 0}).eq("username", username).execute()
             return True, 0, False
             
-        count = user['image_count'] if type == "image" else user.get('voice_count', 0)
-        return (count < limit), count, False
+        current_count = user.get('image_count', 0) if req_type == "image" else user.get('voice_count', 0)
+        return (current_count < limit), current_count, False
     except: return True, 0, False
 
-def update_usage(username, current_count, type="image"):
+def update_usage(username, current_count, req_type="image"):
     try:
-        field = "image_count" if type == "image" else "voice_count"
+        field = "image_count" if req_type == "image" else "voice_count"
         supabase.table("user_usage").update({field: current_count + 1}).eq("username", username).execute()
     except: pass
 
@@ -206,7 +207,7 @@ with tab_img:
         "Anime Style": {"model": "@cf/lykon/dreamshaper-8-lcm", "prefix": "anime style, studio ghibli, 2d, "},
         "Ultra Realistic": {"model": "@cf/bytedance/stable-diffusion-xl-lightning", "prefix": "photorealistic, 8k, realistic, highly detailed, "}
     }
-    image_placeholder = st.empty()
+    image_display = st.empty()
     if st.button("Generate Masterpiece 🖌️"):  
         if img_p:  
             can_gen, current_count, is_premium = check_user_access(st.session_state.user_full_name, "image")
@@ -225,8 +226,9 @@ with tab_img:
                         else: st.error(f"Cloudflare Error: {response.status_code}")
                     except Exception as e: st.error(f"Process Error: {e}")
             else: st.error("🚫 Daily free limit (5/5) reached! Upgrade to Premium.")
+    
     if st.session_state.generated_image:
-        with image_placeholder.container():
+        with image_display.container():
             st.image(st.session_state.generated_image["data"], use_container_width=True, caption=st.session_state.generated_image["caption"])
             st.download_button("Download Image 📥", st.session_state.generated_image["data"], "alpha_gen.png", mime="image/png")
     st.markdown('</div>', unsafe_allow_html=True)
@@ -245,10 +247,10 @@ with tab_vid:
 
 with tab_voice:
     st.markdown('<div class="lab-box">', unsafe_allow_html=True)
-    st.subheader("🎙️ Alpha Text-to-Voice Converter")
+    st.subheader("🎙️ Alpha Voice Studio")
     v_text = st.text_area("කථා කිරීමට අවශ්‍ය දේ මෙහි ලියන්න (Type text to speak):", height=100)
     
-    vc1, vc2, vc3 = st.columns(3)
+    vc1, vc2 = st.columns(2)
     lang_options = {
         "Sinhala (සිංහල)": "si", "English": "en", "Hindi": "hi", "Tamil": "ta", 
         "French": "fr", "German": "de", "Japanese": "ja", "Korean": "ko", "Spanish": "es", "Italian": "it"
@@ -256,17 +258,20 @@ with tab_voice:
     selected_lang = vc1.selectbox("භාෂාව තෝරන්න (Select Language):", list(lang_options.keys()))
     gender = vc2.selectbox("කටහඬ (Gender):", ["Male (පුරුෂ)", "Female (ස්ත්‍රී)"])
     
+    audio_display = st.empty()
+    
     if st.button("Speak Now 🔊"):
         if v_text:
             can_v, v_current, is_p = check_user_access(st.session_state.user_full_name, "voice")
             if can_v:
                 with st.spinner("Alpha is preparing the voice..."):
                     try:
+                        audio_data_final = None
                         if lang_options[selected_lang] == "si":
                             tts = gTTS(text=v_text, lang='si')
                             fp = io.BytesIO()
                             tts.write_to_fp(fp)
-                            st.audio(fp)
+                            audio_data_final = fp.getvalue()
                         else:
                             voice_map = {
                                 "English": {"Male": "en-US-SteffanNeural", "Female": "en-US-AvaNeural"},
@@ -283,20 +288,25 @@ with tab_voice:
                                     async for chunk in communicate.stream():
                                         if chunk["type"] == "audio": audio_data += chunk["data"]
                                     return audio_data
-                                audio_out = asyncio.run(run_voice())
-                                st.audio(audio_out)
+                                audio_data_final = asyncio.run(run_voice())
                             else:
                                 tts = gTTS(text=v_text, lang=lang_code)
                                 fp = io.BytesIO()
                                 tts.write_to_fp(fp)
-                                st.audio(fp)
+                                audio_data_final = fp.getvalue()
                         
-                        if not is_p: update_usage(st.session_state.user_full_name, v_current, "voice")
-                        st.success("හඬ සාර්ථකව නිපදවන ලදී!")
-                        st.rerun()
+                        if audio_data_final:
+                            st.session_state.generated_audio = audio_data_final
+                            if not is_p: update_usage(st.session_state.user_full_name, v_current, "voice")
+                            st.success("හඬ සාර්ථකව නිපදවන ලදී!")
                     except Exception as e: st.error(f"Voice Error: {e}")
             else: st.error("🚫 Voice free limit (6/6) reached! Upgrade to Premium.")
         else: st.warning("කරුණාකර පෙළක් ඇතුළත් කරන්න.")
+    
+    if st.session_state.generated_audio:
+        with audio_display.container():
+            st.audio(st.session_state.generated_audio)
+            
     st.markdown('</div>', unsafe_allow_html=True)
 
 # -----------------------
