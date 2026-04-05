@@ -3,6 +3,7 @@ from huggingface_hub import InferenceClient
 from groq import Groq
 import requests, base64, asyncio, io, json
 import edge_tts
+from gtts import gTTS
 from PIL import Image
 import time
 import urllib.parse
@@ -27,12 +28,11 @@ SUPABASE_KEY = st.secrets.get("SUPABASE_KEY")
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 HF_TOKEN = st.secrets.get("HF_TOKEN")
 
-# Cloudflare Credentials (ඔබ ලබාදුන් තොරතුරු)
+# Cloudflare Credentials
 CLOUDFLARE_ACCOUNT_ID = "2974b71a6d3dab87c1216cfd085422c5"
 CLOUDFLARE_API_TOKEN = "cfut_9fnpPTBN8loKK136ol2v4vJ8mMolXDM4HcvQ165vc7b9f2a1"
 
 # Clients Initialize
-# Note: Safety check for Supabase secrets
 if SUPABASE_URL and SUPABASE_KEY:
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 else:
@@ -53,7 +53,6 @@ hf_client = InferenceClient(token=HF_TOKEN)
 if "messages" not in st.session_state: st.session_state.messages=[]
 if "logged_in" not in st.session_state: st.session_state.logged_in=False
 if "user_full_name" not in st.session_state: st.session_state.user_full_name=None
-# Keep generated image info in session state to persist reruns
 if "generated_image" not in st.session_state: st.session_state.generated_image = None
 
 # -----------------------
@@ -72,25 +71,31 @@ st.markdown("""
 # -----------------------
 # 5. Helper Functions
 # -----------------------
-def check_user_access(username):
+def check_user_access(username, type="image"):
     today = str(datetime.date.today())
+    limit = 5 if type == "image" else 6 # පින්තූර 5යි, හඬවල් 6යි
     try:
         res = supabase.table("user_usage").select("*").eq("username", username).execute()
         if not res.data:
-            supabase.table("user_usage").insert({"username": username, "last_date": today, "image_count": 0, "is_premium": False}).execute()
+            supabase.table("user_usage").insert({"username": username, "last_date": today, "image_count": 0, "voice_count": 0, "is_premium": False}).execute()
             return True, 0, False
+        
         user = res.data[0]
         is_vip = user.get('is_premium', False)
         if is_vip: return True, 0, True
+        
         if user['last_date'] != today:
-            supabase.table("user_usage").update({"last_date": today, "image_count": 0}).eq("username", username).execute()
+            supabase.table("user_usage").update({"last_date": today, "image_count": 0, "voice_count": 0}).eq("username", username).execute()
             return True, 0, False
-        return (user['image_count'] < 5), user['image_count'], False
+            
+        count = user['image_count'] if type == "image" else user.get('voice_count', 0)
+        return (count < limit), count, False
     except: return True, 0, False
 
-def update_usage(username, current_count):
+def update_usage(username, current_count, type="image"):
     try:
-        supabase.table("user_usage").update({"image_count": current_count + 1}).eq("username", username).execute()
+        field = "image_count" if type == "image" else "voice_count"
+        supabase.table("user_usage").update({field: current_count + 1}).eq("username", username).execute()
     except: pass
 
 async def speak_alpha(text):
@@ -144,9 +149,14 @@ if not st.session_state.logged_in:
 with st.sidebar:
     st.image("https://img.icons8.com/fluent/100/000000/artificial-intelligence.png", width=70)
     st.title("Alpha Control")
-    can_gen, count, is_vip = check_user_access(st.session_state.user_full_name)
-    status_txt = "💎 PREMIUM" if is_vip else f"📊 Daily Photos: {count}/5"
-    st.markdown(f'<div class="limit-box">{status_txt}</div>', unsafe_allow_html=True)
+    can_gen_img, img_count, is_vip = check_user_access(st.session_state.user_full_name, "image")
+    can_gen_voice, voice_count, _ = check_user_access(st.session_state.user_full_name, "voice")
+    
+    if is_vip:
+        st.markdown('<div class="limit-box">💎 PREMIUM OPERATOR</div>', unsafe_allow_html=True)
+    else:
+        st.markdown(f'<div class="limit-box">🖼 Photos: {img_count}/5</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="limit-box">🎙️ Voices: {voice_count}/6</div>', unsafe_allow_html=True)
     
     if not is_vip:
         pay_html = f"""
@@ -181,77 +191,44 @@ with st.sidebar:
 st.markdown(f'<div class="premium-banner">⚡ ALPHA AI ULTIMATE | Created by Hasith</div>', unsafe_allow_html=True)
 
 # -----------------------
-# 8. AI Multimodal Labs (Image & Cinema)
+# 8. AI Multimodal Labs
 # -----------------------
-tab_img, tab_vid = st.tabs(["🖼 Cloudflare Image Lab", "🎬 Cinema Lab"])
+tab_img, tab_vid, tab_voice = st.tabs(["🖼 Cloudflare Image Lab", "🎬 Cinema Lab", "🎙️ Alpha Voice Studio"])
 
 with tab_img:
     st.markdown('<div class="lab-box">', unsafe_allow_html=True)
     col1, col2 = st.columns([3, 1])
     img_p = col1.text_input("Describe your vision:", key="cloud_img_prompt")
-    
-    # ඔබ ඉල්ලූ Styles හතර
-    art_style = col2.selectbox("Art Style:", 
-                               ["Cartoon Style", "Comic Book", "Anime Style", "Ultra Realistic"])
-    
-    # Styles සැකසුම්
+    art_style = col2.selectbox("Art Style:", ["Cartoon Style", "Comic Book", "Anime Style", "Ultra Realistic"])
     style_config = {
         "Cartoon Style": {"model": "@cf/lykon/dreamshaper-8-lcm", "prefix": "3d render, pixar style, cartoon, "},
         "Comic Book": {"model": "@cf/lykon/dreamshaper-8-lcm", "prefix": "comic book style, bold lines, illustration, "},
         "Anime Style": {"model": "@cf/lykon/dreamshaper-8-lcm", "prefix": "anime style, studio ghibli, 2d, "},
         "Ultra Realistic": {"model": "@cf/bytedance/stable-diffusion-xl-lightning", "prefix": "photorealistic, 8k, realistic, highly detailed, "}
     }
-    
-    # Placeholder to show image so it persists during current run
     image_placeholder = st.empty()
-    
     if st.button("Generate Masterpiece 🖌️"):  
         if img_p:  
-            can_gen, current_count, is_premium = check_user_access(st.session_state.user_full_name)
+            can_gen, current_count, is_premium = check_user_access(st.session_state.user_full_name, "image")
             if can_gen:
                 with st.spinner(f"Alpha is crafting your {art_style}..."):  
                     try:
                         cfg = style_config[art_style]
                         API_URL = f"https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/run/{cfg['model']}"
                         headers = {"Authorization": f"Bearer {CLOUDFLARE_API_TOKEN}"}
-                        
-                        payload = {
-                            "prompt": cfg['prefix'] + img_p,
-                            "negative_prompt": "blurry, low quality, distorted, bad anatomy"
-                        }
-                        
+                        payload = {"prompt": cfg['prefix'] + img_p, "negative_prompt": "blurry, low quality, distorted, bad anatomy"}
                         response = requests.post(API_URL, headers=headers, json=payload, timeout=60)
-                        
                         if response.status_code == 200:
                             img_data = response.content
-                            
-                            # Update session state to persist image on future chat reruns
-                            st.session_state.generated_image = {
-                                "data": img_data,
-                                "caption": f"Alpha Gen: {art_style}"
-                            }
-                            
-                            if not is_premium: update_usage(st.session_state.user_full_name, current_count)
-                            
-                            # Note: REMOVED st.rerun() here which caused the image to flash and disappear.
-                            # Instead, Streamlit will naturally rerun and show the image via session state below.
-                        else:
-                            st.error(f"Cloudflare Error: {response.status_code}")
-                    except Exception as e:
-                        st.error(f"Process Error: {e}")
-            else:
-                st.error("🚫 Daily free limit (5/5) reached! Please upgrade to Premium.")
-        else:
-            st.warning("Describe your vision first.")
-
-    # Always show generated image if it exists in session state
+                            st.session_state.generated_image = {"data": img_data, "caption": f"Alpha Gen: {art_style}"}
+                            if not is_premium: update_usage(st.session_state.user_full_name, current_count, "image")
+                        else: st.error(f"Cloudflare Error: {response.status_code}")
+                    except Exception as e: st.error(f"Process Error: {e}")
+            else: st.error("🚫 Daily free limit (5/5) reached! Upgrade to Premium.")
     if st.session_state.generated_image:
-        image_data = st.session_state.generated_image["data"]
-        caption = st.session_state.generated_image["caption"]
         with image_placeholder.container():
-            st.image(image_data, use_container_width=True, caption=caption)
-            st.download_button("Download Image 📥", image_data, f"alpha_{caption.replace(': ','_')}.png", mime="image/png")
-            
+            st.image(st.session_state.generated_image["data"], use_container_width=True, caption=st.session_state.generated_image["caption"])
+            st.download_button("Download Image 📥", st.session_state.generated_image["data"], "alpha_gen.png", mime="image/png")
     st.markdown('</div>', unsafe_allow_html=True)
 
 with tab_vid:
@@ -264,6 +241,62 @@ with tab_vid:
                 vid_data = generate_video_robust(vid_p)
                 if vid_data: st.video(vid_data)
                 else: st.error("Cinema Lab is currently busy.")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with tab_voice:
+    st.markdown('<div class="lab-box">', unsafe_allow_html=True)
+    st.subheader("🎙️ Alpha Text-to-Voice Converter")
+    v_text = st.text_area("කථා කිරීමට අවශ්‍ය දේ මෙහි ලියන්න (Type text to speak):", height=100)
+    
+    vc1, vc2, vc3 = st.columns(3)
+    lang_options = {
+        "Sinhala (සිංහල)": "si", "English": "en", "Hindi": "hi", "Tamil": "ta", 
+        "French": "fr", "German": "de", "Japanese": "ja", "Korean": "ko", "Spanish": "es", "Italian": "it"
+    }
+    selected_lang = vc1.selectbox("භාෂාව තෝරන්න (Select Language):", list(lang_options.keys()))
+    gender = vc2.selectbox("කටහඬ (Gender):", ["Male (පුරුෂ)", "Female (ස්ත්‍රී)"])
+    
+    if st.button("Speak Now 🔊"):
+        if v_text:
+            can_v, v_current, is_p = check_user_access(st.session_state.user_full_name, "voice")
+            if can_v:
+                with st.spinner("Alpha is preparing the voice..."):
+                    try:
+                        if lang_options[selected_lang] == "si":
+                            tts = gTTS(text=v_text, lang='si')
+                            fp = io.BytesIO()
+                            tts.write_to_fp(fp)
+                            st.audio(fp)
+                        else:
+                            voice_map = {
+                                "English": {"Male": "en-US-SteffanNeural", "Female": "en-US-AvaNeural"},
+                                "Tamil": {"Male": "ta-IN-ValluvarNeural", "Female": "ta-IN-PallaviNeural"},
+                                "Hindi": {"Male": "hi-IN-MadhurNeural", "Female": "hi-IN-SwaraNeural"}
+                            }
+                            lang_code = lang_options[selected_lang]
+                            if selected_lang in voice_map:
+                                g_key = "Male" if "Male" in gender else "Female"
+                                selected_voice = voice_map[selected_lang][g_key]
+                                async def run_voice():
+                                    communicate = edge_tts.Communicate(v_text, selected_voice)
+                                    audio_data = b""
+                                    async for chunk in communicate.stream():
+                                        if chunk["type"] == "audio": audio_data += chunk["data"]
+                                    return audio_data
+                                audio_out = asyncio.run(run_voice())
+                                st.audio(audio_out)
+                            else:
+                                tts = gTTS(text=v_text, lang=lang_code)
+                                fp = io.BytesIO()
+                                tts.write_to_fp(fp)
+                                st.audio(fp)
+                        
+                        if not is_p: update_usage(st.session_state.user_full_name, v_current, "voice")
+                        st.success("හඬ සාර්ථකව නිපදවන ලදී!")
+                        st.rerun()
+                    except Exception as e: st.error(f"Voice Error: {e}")
+            else: st.error("🚫 Voice free limit (6/6) reached! Upgrade to Premium.")
+        else: st.warning("කරුණාකර පෙළක් ඇතුළත් කරන්න.")
     st.markdown('</div>', unsafe_allow_html=True)
 
 # -----------------------
@@ -282,7 +315,6 @@ if user_input:
             res_placeholder = st.empty()
             search_context = web_search_tool(user_input) if web_search_on else ""
             sys_msg = f"Your name is Alpha AI. Developed by Hasith from Bandarawela Central College. Search context: {search_context}"
-            
             try:
                 stream = groq_client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
