@@ -7,3 +7,4 @@ edge-tts
 duckduckgo-search
 supabase
 gTTS
+javascript
