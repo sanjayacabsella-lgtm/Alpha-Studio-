@@ -11,7 +11,6 @@ import random
 from duckduckgo_search import DDGS 
 from supabase import create_client, Client
 import datetime
-from streamlit_javascript import st_javascript
 
 # -----------------------
 # 1. Page Config & Identity
@@ -22,48 +21,40 @@ st.set_page_config(page_title="Alpha AI | Created by Hasith", layout="wide", pag
 st.markdown('<meta name="google-site-verification" content="W6jIGzCkkez2SpjygP6z0dJfinBNALmw2Hv-MkJvFB0" />', unsafe_allow_html=True)
 
 # -----------------------
-# 2. API & Database Setup
+# 2. API & Database Setup (Secrets & Direct Keys)
 # -----------------------
 SUPABASE_URL = st.secrets.get("SUPABASE_URL")
 SUPABASE_KEY = st.secrets.get("SUPABASE_KEY")
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 HF_TOKEN = st.secrets.get("HF_TOKEN")
 
+# Cloudflare Credentials
 CLOUDFLARE_ACCOUNT_ID = "2974b71a6d3dab87c1216cfd085422c5"
 CLOUDFLARE_API_TOKEN = "cfut_9fnpPTBN8loKK136ol2v4vJ8mMolXDM4HcvQ165vc7b9f2a1"
 
+# Clients Initialize
 if SUPABASE_URL and SUPABASE_KEY:
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 else:
-    st.error("Supabase credentials missing.")
+    st.error("Supabase credentials are missing in secrets.")
     st.stop()
 
 if GROQ_API_KEY:
     groq_client = Groq(api_key=GROQ_API_KEY)
 else:
-    st.error("Groq API key missing.")
+    st.error("Groq API key is missing in secrets.")
     st.stop()
 
 hf_client = InferenceClient(token=HF_TOKEN)
 
 # -----------------------
-# 3. Persistent Login Logic (Refresh Fix)
+# 3. Session State Init
 # -----------------------
 if "messages" not in st.session_state: st.session_state.messages=[]
+if "logged_in" not in st.session_state: st.session_state.logged_in=False
+if "user_full_name" not in st.session_state: st.session_state.user_full_name=None
 if "generated_image" not in st.session_state: st.session_state.generated_image = None
 if "generated_audio" not in st.session_state: st.session_state.generated_audio = None
-
-# Browser එකේ කලින් Log වුණ දත්ත තියෙනවද බලන්න JavaScript භාවිතා කිරීම
-local_storage_name = st_javascript("localStorage.getItem('alpha_user_name');")
-local_storage_logged = st_javascript("localStorage.getItem('alpha_logged_in');")
-
-if "logged_in" not in st.session_state:
-    if local_storage_logged == "true":
-        st.session_state.logged_in = True
-        st.session_state.user_full_name = local_storage_name
-    else:
-        st.session_state.logged_in = False
-        st.session_state.user_full_name = None
 
 # -----------------------
 # 4. Custom UI Styling
@@ -89,12 +80,15 @@ def check_user_access(username, req_type="image"):
         if not res.data:
             supabase.table("user_usage").insert({"username": username, "last_date": today, "image_count": 0, "voice_count": 0, "is_premium": False}).execute()
             return True, 0, False
+        
         user = res.data[0]
         is_vip = user.get('is_premium', False)
         if is_vip: return True, 0, True
+        
         if user['last_date'] != today:
             supabase.table("user_usage").update({"last_date": today, "image_count": 0, "voice_count": 0}).eq("username", username).execute()
             return True, 0, False
+            
         current_count = user.get('image_count', 0) if req_type == "image" else user.get('voice_count', 0)
         return (current_count < limit), current_count, False
     except: return True, 0, False
@@ -136,25 +130,22 @@ def generate_video_robust(prompt):
     return None
 
 # -----------------------
-# 6. Login System with Persistance
+# 6. Login System
 # -----------------------
 if not st.session_state.logged_in:
     st.markdown('<div class="premium-banner">ALPHA CORE SYSTEM ACCESS</div>', unsafe_allow_html=True)
-    name_input = st.text_input("Operator Name")
-    pass_input = st.text_input("Master Key", type="password")
+    name = st.text_input("Operator Name")
+    password = st.text_input("Master Key", type="password")
     if st.button("Initialize Alpha"):
-        if pass_input == "Hasith12378":
-            # Browser එකේ ලොගින් දත්ත සේව් කිරීම (JavaScript හරහා)
-            st_javascript(f"localStorage.setItem('alpha_user_name', '{name_input}');")
-            st_javascript("localStorage.setItem('alpha_logged_in', 'true');")
-            st.session_state.user_full_name = name_input or "Hasith"
+        if password == "Hasith12378":
+            st.session_state.user_full_name = name or "Hasith"
             st.session_state.logged_in = True
             st.rerun()
         else: st.error("Access Denied")
     st.stop()
 
 # -----------------------
-# 7. Sidebar & UI
+# 7. Sidebar & Payment
 # -----------------------
 with st.sidebar:
     st.image("https://img.icons8.com/fluent/100/000000/artificial-intelligence.png", width=70)
@@ -187,17 +178,14 @@ with st.sidebar:
             <input type="hidden" name="city" value="Bandarawela">
             <input type="hidden" name="country" value="Sri Lanka">
             <input type="submit" value="BUY PREMIUM - RS.500" style="background:#FFD700; color:black; border:none; padding:10px; border-radius:10px; font-weight:bold; width:100%; cursor:pointer;">
-        </form>"""
+        </form>
+        """
         st.components.v1.html(pay_html, height=50)
 
     mode = st.radio("Intelligence Level", ["Normal", "Pro", "Ultra"])
     web_search_on = st.checkbox("Web Search", value=False)
     voice_on = st.checkbox("Voice Output", value=True)
-    
     if st.button("Log Out"):
-        # Browser storage එක ක්ලියර් කිරීම
-        st_javascript("localStorage.removeItem('alpha_user_name');")
-        st_javascript("localStorage.removeItem('alpha_logged_in');")
         st.session_state.logged_in = False
         st.rerun()
 
@@ -237,7 +225,7 @@ with tab_img:
                             if not is_premium: update_usage(st.session_state.user_full_name, current_count, "image")
                         else: st.error(f"Cloudflare Error: {response.status_code}")
                     except Exception as e: st.error(f"Process Error: {e}")
-            else: st.error("🚫 Daily free limit (5/5) reached!")
+            else: st.error("🚫 Daily free limit (5/5) reached! Upgrade to Premium.")
     
     if st.session_state.generated_image:
         with image_display.container():
@@ -254,50 +242,71 @@ with tab_vid:
             with st.spinner("Alpha is directing... 🎬"):
                 vid_data = generate_video_robust(vid_p)
                 if vid_data: st.video(vid_data)
-                else: st.error("Cinema Lab is busy.")
+                else: st.error("Cinema Lab is currently busy.")
     st.markdown('</div>', unsafe_allow_html=True)
 
 with tab_voice:
     st.markdown('<div class="lab-box">', unsafe_allow_html=True)
     st.subheader("🎙️ Alpha Voice Studio")
-    v_text = st.text_area("Type text to speak:", height=100)
+    v_text = st.text_area("කථා කිරීමට අවශ්‍ය දේ මෙහි ලියන්න (Type text to speak):", height=100)
+    
     vc1, vc2 = st.columns(2)
-    lang_options = {"Sinhala (සිංහල)": "si", "English": "en", "Hindi": "hi", "Tamil": "ta", "French": "fr"}
-    selected_lang = vc1.selectbox("Select Language:", list(lang_options.keys()))
-    gender = vc2.selectbox("Gender:", ["Male (පුරුෂ)", "Female (ස්ත්‍රී)"])
+    lang_options = {
+        "Sinhala (සිංහල)": "si", "English": "en", "Hindi": "hi", "Tamil": "ta", 
+        "French": "fr", "German": "de", "Japanese": "ja", "Korean": "ko", "Spanish": "es", "Italian": "it"
+    }
+    selected_lang = vc1.selectbox("භාෂාව තෝරන්න (Select Language):", list(lang_options.keys()))
+    gender = vc2.selectbox("කටහඬ (Gender):", ["Male (පුරුෂ)", "Female (ස්ත්‍රී)"])
+    
     audio_display = st.empty()
+    
     if st.button("Speak Now 🔊"):
         if v_text:
             can_v, v_current, is_p = check_user_access(st.session_state.user_full_name, "voice")
             if can_v:
-                with st.spinner("Alpha is preparing..."):
+                with st.spinner("Alpha is preparing the voice..."):
                     try:
-                        audio_final = None
+                        audio_data_final = None
                         if lang_options[selected_lang] == "si":
                             tts = gTTS(text=v_text, lang='si')
-                            fp = io.BytesIO(); tts.write_to_fp(fp); audio_final = fp.getvalue()
+                            fp = io.BytesIO()
+                            tts.write_to_fp(fp)
+                            audio_data_final = fp.getvalue()
                         else:
-                            voice_map = {"English": {"Male": "en-US-SteffanNeural", "Female": "en-US-AvaNeural"}}
+                            voice_map = {
+                                "English": {"Male": "en-US-SteffanNeural", "Female": "en-US-AvaNeural"},
+                                "Tamil": {"Male": "ta-IN-ValluvarNeural", "Female": "ta-IN-PallaviNeural"},
+                                "Hindi": {"Male": "hi-IN-MadhurNeural", "Female": "hi-IN-SwaraNeural"}
+                            }
+                            lang_code = lang_options[selected_lang]
                             if selected_lang in voice_map:
-                                sel_v = voice_map[selected_lang]["Male" if "Male" in gender else "Female"]
-                                async def run_v():
-                                    comm = edge_tts.Communicate(v_text, sel_v)
-                                    a = b""
-                                    async for c in comm.stream():
-                                        if c["type"] == "audio": a += c["data"]
-                                    return a
-                                audio_final = asyncio.run(run_v())
+                                g_key = "Male" if "Male" in gender else "Female"
+                                selected_voice = voice_map[selected_lang][g_key]
+                                async def run_voice():
+                                    communicate = edge_tts.Communicate(v_text, selected_voice)
+                                    audio_data = b""
+                                    async for chunk in communicate.stream():
+                                        if chunk["type"] == "audio": audio_data += chunk["data"]
+                                    return audio_data
+                                audio_data_final = asyncio.run(run_voice())
                             else:
-                                tts = gTTS(text=v_text, lang=lang_options[selected_lang])
-                                fp = io.BytesIO(); tts.write_to_fp(fp); audio_final = fp.getvalue()
-                        if audio_final:
-                            st.session_state.generated_audio = audio_final
+                                tts = gTTS(text=v_text, lang=lang_code)
+                                fp = io.BytesIO()
+                                tts.write_to_fp(fp)
+                                audio_data_final = fp.getvalue()
+                        
+                        if audio_data_final:
+                            st.session_state.generated_audio = audio_data_final
                             if not is_p: update_usage(st.session_state.user_full_name, v_current, "voice")
-                            st.success("Voice Ready!")
-                    except Exception as e: st.error(f"Error: {e}")
-            else: st.error("🚫 Voice free limit (6/6) reached!")
+                            st.success("හඬ සාර්ථකව නිපදවන ලදී!")
+                    except Exception as e: st.error(f"Voice Error: {e}")
+            else: st.error("🚫 Voice free limit (6/6) reached! Upgrade to Premium.")
+        else: st.warning("කරුණාකර පෙළක් ඇතුළත් කරන්න.")
+    
     if st.session_state.generated_audio:
-        with audio_display.container(): st.audio(st.session_state.generated_audio)
+        with audio_display.container():
+            st.audio(st.session_state.generated_audio)
+            
     st.markdown('</div>', unsafe_allow_html=True)
 
 # -----------------------
@@ -333,4 +342,4 @@ if user_input:
             except Exception as e: st.error(f"Chat Error: {e}")
 
 st.markdown("---")
-st.caption("Alpha AI Project | Created by Hasith")
+st.caption("Alpha AI Project | Bandarawela Central College | Created by Hasith")
