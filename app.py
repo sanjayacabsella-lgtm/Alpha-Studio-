@@ -1,4 +1,3 @@
-import streamlit as st
 from huggingface_hub import InferenceClient
 from groq import Groq
 import requests, base64, asyncio, io, json
@@ -11,6 +10,7 @@ import random
 from duckduckgo_search import DDGS 
 from supabase import create_client, Client
 import datetime
+import streamlit as st
 
 # -----------------------
 # 1. Page Config & Identity
@@ -28,9 +28,9 @@ SUPABASE_KEY = st.secrets.get("SUPABASE_KEY")
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 HF_TOKEN = st.secrets.get("HF_TOKEN")
 
-# Cloudflare Credentials
-CLOUDFLARE_ACCOUNT_ID = "2974b71a6d3dab87c1216cfd085422c5"
-CLOUDFLARE_API_TOKEN = "cfut_9fnpPTBN8loKK136ol2v4vJ8mMolXDM4HcvQ165vc7b9f2a1"
+# Cloudflare Credentials (Updated to use Secrets)
+CLOUDFLARE_ACCOUNT_ID = st.secrets.get("CLOUDFLARE_ACCOUNT_ID")
+CLOUDFLARE_API_TOKEN = st.secrets.get("CLOUDFLARE_API_TOKEN")
 
 # Clients Initialize
 if SUPABASE_URL and SUPABASE_KEY:
