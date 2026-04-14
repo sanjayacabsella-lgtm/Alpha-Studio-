@@ -7,7 +7,6 @@ gTTS
 Pillow
 duckduckgo_search
 supabase
-opencv-python
+opencv-python-headless
 mediapipe
 streamlit-agraph
-asyncio
