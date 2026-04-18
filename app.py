@@ -1,16 +1,21 @@
+import streamlit as st
+import requests
+import io
+from PIL import Image
+import random
+import time
+import base64
+import asyncio
+import json
+import string
+import datetime
+import urllib.parse
 from huggingface_hub import InferenceClient
 from groq import Groq
-import requests, base64, asyncio, io, json
 import edge_tts
 from gtts import gTTS
-from PIL import Image
-import time
-import urllib.parse
-import random
 from duckduckgo_search import DDGS 
 from supabase import create_client, Client
-import datetime
-import streamlit as st
 import cv2
 import mediapipe as mp
 from streamlit_agraph import agraph, Node, Edge, Config
@@ -55,17 +60,18 @@ if "logged_in" not in st.session_state: st.session_state.logged_in=False
 if "user_full_name" not in st.session_state: st.session_state.user_full_name=None
 if "generated_image" not in st.session_state: st.session_state.generated_image = None
 if "generated_audio" not in st.session_state: st.session_state.generated_audio = None
+if 'history' not in st.session_state: st.session_state.history = []
 
 # -----------------------
-# 4. Custom UI Styling (Original Gold Styling)
+# 4. Custom UI Styling (Premium Gold)
 # -----------------------
 st.markdown("""
 <style>  
+    .stApp { background: linear-gradient(135deg, #050505 0%, #001a1a 100%); color: #ffffff; }
     .premium-banner { width:100%; padding:15px; background: linear-gradient(90deg, #FFD700, #FF8C00); color:#000; border-radius:15px; text-align:center; font-weight:bold; margin-bottom:20px; font-size: 22px; box-shadow: 0px 4px 15px rgba(0,0,0,0.3); }  
-    .stChatMessage { border-radius: 15px; }  
-    div.stButton > button { background-color: #1e1e1e; color: #FFD700; border-radius: 12px; width: 100%; height: 45px; font-weight: bold; border: 1px solid #FFD700; transition: 0.3s; }  
-    div.stButton > button:hover { background-color: #FFD700; color: #000; }  
-    .lab-box { border: 1px solid #333; padding: 20px; border-radius: 15px; background: #0e1117; margin-bottom: 20px; }  
+    div.stButton > button { background-color: #1e1e1e; color: #FFD700; border-radius: 50px; width: 100%; height: 50px; font-weight: bold; border: 2px solid #FFD700; transition: 0.3s; box-shadow: 0px 0px 15px rgba(255, 215, 0, 0.2); }  
+    div.stButton > button:hover { background-color: #FFD700; color: #000; box-shadow: 0px 0px 25px rgba(255, 215, 0, 0.5); transform: scale(1.02); }  
+    .lab-box { border: 1px solid #333; padding: 20px; border-radius: 15px; background: rgba(14, 17, 23, 0.8); margin-bottom: 20px; }  
     .limit-box { padding:10px; border-radius:10px; background:#262730; border:1px solid #FFD700; text-align:center; margin-bottom:10px; font-weight:bold; }
 </style>  """, unsafe_allow_html=True)
 
@@ -189,7 +195,7 @@ with st.sidebar:
 st.markdown(f'<div class="premium-banner">⚡ ALPHA AI ULTIMATE | Created by Hasith</div>', unsafe_allow_html=True)
 
 # -----------------------
-# 8. AI Multimodal Labs (Original Labs + New Super Features)
+# 8. AI Multimodal Labs
 # -----------------------
 tab_img, tab_vid, tab_voice, tab_evo, tab_gest, tab_map = st.tabs([
     "🖼 Image Lab", "🎬 Cinema Lab", "🎙️ Voice Studio", "🧬 DNA Evolution", "🖐️ Gestures", "🧠 Neural Map"
@@ -197,39 +203,49 @@ tab_img, tab_vid, tab_voice, tab_evo, tab_gest, tab_map = st.tabs([
 
 with tab_img:
     st.markdown('<div class="lab-box">', unsafe_allow_html=True)
-    col1, col2 = st.columns([3, 1])
-    img_p = col1.text_input("Describe your vision:", key="cloud_img_prompt")
-    art_style = col2.selectbox("Art Style:", ["Cartoon Style", "Comic Book", "Anime Style", "Ultra Realistic"])
-    style_config = {
-        "Cartoon Style": {"model": "@cf/lykon/dreamshaper-8-lcm", "prefix": "3d render, pixar style, cartoon, "},
-        "Comic Book": {"model": "@cf/lykon/dreamshaper-8-lcm", "prefix": "comic book style, bold lines, illustration, "},
-        "Anime Style": {"model": "@cf/lykon/dreamshaper-8-lcm", "prefix": "anime style, studio ghibli, 2d, "},
-        "Ultra Realistic": {"model": "@cf/bytedance/stable-diffusion-xl-lightning", "prefix": "photorealistic, 8k, realistic, highly detailed, "}
-    }
-    image_display = st.empty()
-    if st.button("Generate Masterpiece 🖌️"):  
-        if img_p:  
-            can_gen, current_count, is_premium = check_user_access(st.session_state.user_full_name, "image")
-            if can_gen:
-                with st.spinner(f"Alpha is crafting your {art_style}..."):  
-                    try:
-                        cfg = style_config[art_style]
-                        API_URL = f"https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/run/{cfg['model']}"
-                        headers = {"Authorization": f"Bearer {CLOUDFLARE_API_TOKEN}"}
-                        payload = {"prompt": cfg['prefix'] + img_p, "negative_prompt": "blurry, low quality, distorted, bad anatomy"}
-                        response = requests.post(API_URL, headers=headers, json=payload, timeout=60)
-                        if response.status_code == 200:
-                            img_data = response.content
-                            st.session_state.generated_image = {"data": img_data, "caption": f"Alpha Gen: {art_style}"}
-                            if not is_premium: update_usage(st.session_state.user_full_name, current_count, "image")
-                        else: st.error(f"Cloudflare Error: {response.status_code}")
-                    except Exception as e: st.error(f"Process Error: {e}")
-            else: st.error("🚫 Daily free limit (5/5) reached! Upgrade to Premium.")
+    col_main, col_hist = st.columns([2, 1])
     
-    if st.session_state.generated_image:
-        with image_display.container():
-            st.image(st.session_state.generated_image["data"], use_container_width=True, caption=st.session_state.generated_image["caption"])
-            st.download_button("Download Image 📥", st.session_state.generated_image["data"], "alpha_gen.png", mime="image/png")
+    with col_main:
+        st.subheader("🔱 Titan-Gate Image Engine")
+        img_p = st.text_input("Describe your vision (English):", placeholder="e.g. A realistic lion king on a rock, 8k cinematic")
+        art_style = st.selectbox("Render Mode:", ["Flux (Titan)", "Turbo (Fast)", "Realism", "Anime"])
+        
+        if st.button("RENDER MASTERPIECE 🚀"):
+            if img_p:
+                can_gen, current_count, is_premium = check_user_access(st.session_state.user_full_name, "image")
+                if can_gen:
+                    progress = st.progress(0)
+                    for i in range(100):
+                        time.sleep(0.01)
+                        progress.progress(i + 1)
+                    
+                    # Billion-Gate Logic: Every request is a unique route
+                    p_enc = img_p.strip().replace(" ", "%20")
+                    seed = random.randint(1, 999999999999)
+                    rid = ''.join(random.choices(string.ascii_letters + string.digits, k=15))
+                    
+                    nodes = [
+                        f"https://image.pollinations.ai/prompt/{p_enc}?width=1024&height=1024&seed={seed}&id={rid}&nologo=true",
+                        f"https://pollinations.ai/p/{p_enc}?width=1024&height=1024&seed={seed}&node={rid}",
+                        f"https://image.pollinations.ai/prompt/{p_enc}?model=flux&seed={seed}&unique={rid}",
+                        f"https://image.pollinations.ai/prompt/{p_enc}?model=turbo&seed={seed}&session={rid}"
+                    ]
+                    
+                    final_url = random.choice(nodes)
+                    st.session_state.generated_image = {"url": final_url, "caption": f"Alpha Titan Render | Node: {rid}"}
+                    st.session_state.history.insert(0, final_url)
+                    
+                    if not is_premium: update_usage(st.session_state.user_full_name, current_count, "image")
+                    st.image(final_url, use_container_width=True)
+                    st.markdown(f'<a href="{final_url}" target="_blank"><button style="width:100%; padding:10px; background:#FFD700; color:black; border:none; border-radius:10px; font-weight:bold;">Download Full Quality 📥</button></a>', unsafe_allow_html=True)
+                else: st.error("🚫 Daily free limit reached! Upgrade to Premium.")
+    
+    with col_hist:
+        st.write("### 📜 Recent")
+        if st.session_state.history:
+            for h_img in st.session_state.history[:5]:
+                st.image(h_img, use_container_width=True)
+                st.divider()
     st.markdown('</div>', unsafe_allow_html=True)
 
 with tab_vid:
@@ -248,7 +264,6 @@ with tab_voice:
     st.markdown('<div class="lab-box">', unsafe_allow_html=True)
     st.subheader("🎙️ Alpha Voice Studio")
     v_text = st.text_area("කථා කිරීමට අවශ්‍ය දේ මෙහි ලියන්න:", height=100)
-    # (Original Voice Studio Logic preserved)
     lang_options = {"Sinhala (සිංහල)": "si", "English": "en", "Hindi": "hi", "Tamil": "ta"}
     selected_lang = st.selectbox("Select Language:", list(lang_options.keys()))
     if st.button("Speak Now 🔊"):
@@ -264,7 +279,6 @@ with tab_voice:
     if st.session_state.generated_audio: st.audio(st.session_state.generated_audio)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- NEW FEATURE: DNA EVOLUTION (Protected by hasith78) ---
 with tab_evo:
     st.markdown('<div class="lab-box">', unsafe_allow_html=True)
     st.header("🧬 DNA Evolution Engine (Pro)")
@@ -277,14 +291,13 @@ with tab_evo:
                 completion = groq_client.chat.completions.create(
                     model="openai/gpt-oss-120b",
                     messages=[{"role": "user", "content": f"Rewrite this entire code to add: {evo_req}. Return only python code:\n{current_code}"}],
-                    reasoning_effort="pro"
+                    reasoning_effort="medium"
                 )
                 with open(__file__, "w", encoding="utf-8") as f: f.write(completion.choices[0].message.content)
                 st.success("DNA Updated! Refreshing...")
                 st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- NEW FEATURE: GESTURE CONTROL ---
 with tab_gest:
     st.markdown('<div class="lab-box">', unsafe_allow_html=True)
     st.header("🖐️ Gesture Hub")
@@ -304,7 +317,6 @@ with tab_gest:
         cap.release()
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- NEW FEATURE: NEURAL MAP ---
 with tab_map:
     st.markdown('<div class="lab-box">', unsafe_allow_html=True)
     st.header("🧠 Knowledge Graph")
