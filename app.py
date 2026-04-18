@@ -121,17 +121,6 @@ def web_search_tool(query):
     except: return ""
     return ""
 
-def generate_video_robust(prompt):
-    models = ["guoyww/AnimateDiff", "cerspense/zeroscope_v2_576w"]
-    headers = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
-    for model_id in models:
-        try:
-            API_URL = f"https://api-inference.huggingface.co/models/{model_id}"
-            response = requests.post(API_URL, headers=headers, json={"inputs": prompt}, timeout=60)
-            if response.status_code == 200: return response.content
-        except: continue
-    return None
-
 # -----------------------
 # 6. Login System
 # -----------------------
@@ -219,7 +208,6 @@ with tab_img:
                         time.sleep(0.01)
                         progress.progress(i + 1)
                     
-                    # Billion-Gate Logic: Every request is a unique route
                     p_enc = img_p.strip().replace(" ", "%20")
                     seed = random.randint(1, 999999999999)
                     rid = ''.join(random.choices(string.ascii_letters + string.digits, k=15))
@@ -250,14 +238,26 @@ with tab_img:
 
 with tab_vid:
     st.markdown('<div class="lab-box">', unsafe_allow_html=True)
+    st.subheader("🎬 Alpha Cinema Lab (Titan Video Engine)")
     v_col1, v_col2 = st.columns([3, 1])
-    vid_p = v_col1.text_input("Describe video scene:", key="vid_prompt")
-    if v_col2.button("Generate Video"):
+    vid_p = v_col1.text_input("Describe video scene:", key="vid_prompt_titan")
+    
+    if v_col2.button("Generate Video 🎥"):
         if vid_p:
-            with st.spinner("Alpha is directing... 🎬"):
-                vid_data = generate_video_robust(vid_p)
-                if vid_data: st.video(vid_data)
-                else: st.error("Cinema Lab is currently busy.")
+            with st.spinner("Alpha is generating your video clip..."):
+                p_enc = vid_p.strip().replace(" ", "%20")
+                seed = random.randint(1, 999999)
+                # Pollinations AI Titan Video Route
+                video_url = f"https://pollinations.ai/p/{p_enc}?width=512&height=512&seed={seed}&model=video"
+                
+                try:
+                    st.video(video_url)
+                    st.success("වීඩියෝව සාර්ථකව නිපදවන ලදී!")
+                    st.markdown(f'<a href="{video_url}" target="_blank"><button style="width:100%; padding:10px; background:#FFD700; color:black; border:none; border-radius:10px; font-weight:bold;">Download Video 📥</button></a>', unsafe_allow_html=True)
+                except:
+                    st.error("වීඩියෝ සර්වර් එකට සම්බන්ධ වීමේ දෝෂයකි. නැවත උත්සාහ කරන්න.")
+        else:
+            st.warning("කරුණාකර වීඩියෝව සඳහා විස්තරයක් ඇතුළත් කරන්න.")
     st.markdown('</div>', unsafe_allow_html=True)
 
 with tab_voice:
