@@ -299,22 +299,31 @@ with tab_evo:
     st.markdown('</div>', unsafe_allow_html=True)
 
 with tab_gest:
+with tab_gest:
     st.markdown('<div class="lab-box">', unsafe_allow_html=True)
     st.header("🖐️ Gesture Hub")
-    cam_run = st.checkbox("Open Sensor Feed")
-    if cam_run:
-        mp_hands = mp.solutions.hands
-        hands = mp_hands.Hands()
-        cap = cv2.VideoCapture(0)
-        st_frame = st.empty()
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret: break
-            frame = cv2.cvtColor(cv2.flip(frame, 1), cv2.COLOR_BGR2RGB)
-            if hands.process(frame).multi_hand_landmarks: st.info("Hand Active")
-            st_frame.image(frame)
-            if not cam_run: break
-        cap.release()
+    
+    try:
+        import mediapipe as mp
+        cam_run = st.checkbox("Open Sensor Feed")
+        if cam_run:
+            mp_hands = mp.solutions.hands
+            with mp_hands.Hands(static_image_mode=False, max_num_hands=2, min_detection_confidence=0.5) as hands:
+                cap = cv2.VideoCapture(0)
+                st_frame = st.empty()
+                while cap.isOpened():
+                    ret, frame = cap.read()
+                    if not ret: break
+                    frame = cv2.cvtColor(cv2.flip(frame, 1), cv2.COLOR_BGR2RGB)
+                    results = hands.process(frame)
+                    if results.multi_hand_landmarks:
+                        st.info("Hand Active ✋")
+                    st_frame.image(frame)
+                    if not cam_run: break
+                cap.release()
+    except Exception as e:
+        st.error(f"Gesture System Error: {e}")
+        st.info("මෙම විශේෂාංගය දැනට ඔබගේ බ්‍රවුසරයේ හෝ සර්වර් එකේ සහාය නොදක්වයි.")
     st.markdown('</div>', unsafe_allow_html=True)
 
 with tab_map:
