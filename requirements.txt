@@ -8,5 +8,4 @@ gTTS
 duckduckgo_search
 supabase
 opencv-python-headless
-mediapipe==0.10.11
 streamlit-agraph
