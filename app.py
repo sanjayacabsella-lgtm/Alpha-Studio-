@@ -16,7 +16,6 @@ import edge_tts
 from gtts import gTTS
 from duckduckgo_search import DDGS 
 from supabase import create_client, Client
-import cv2
 from streamlit_agraph import agraph, Node, Edge, Config
 
 # -----------------------
@@ -54,32 +53,21 @@ if "logged_in" not in st.session_state: st.session_state.logged_in=False
 if "user_full_name" not in st.session_state: st.session_state.user_full_name=None
 if "generated_image" not in st.session_state: st.session_state.generated_image = None
 if "quick_prompt" not in st.session_state: st.session_state.quick_prompt = None
+if 'history' not in st.session_state: st.session_state.history = []
 
 # -----------------------
-# 4. Custom UI Styling (Premium Gold & Mobile Optimized)
+# 4. Custom UI Styling (Premium Gold & APK Optimized)
 # -----------------------
 st.markdown("""
 <style>  
-    /* Mobile Optimization for APK */
     @viewport { width: device-width; zoom: 1.0; }
-    .block-container { padding-top: 1rem !important; padding-bottom: 5rem !important; }
-    
     .stApp { background: linear-gradient(135deg, #050505 0%, #001a1a 100%); color: #ffffff; }
     .premium-banner { width:100%; padding:15px; background: linear-gradient(90deg, #FFD700, #FF8C00); color:#000; border-radius:15px; text-align:center; font-weight:bold; margin-bottom:20px; font-size: 20px; box-shadow: 0px 4px 15px rgba(0,0,0,0.3); }  
-    
-    /* Buttons Styling */
     div.stButton > button { background-color: #1e1e1e; color: #FFD700; border-radius: 12px; width: 100%; font-weight: bold; border: 2px solid #FFD700; transition: 0.3s; }  
     div.stButton > button:hover { background-color: #FFD700; color: #000; transform: scale(1.02); }  
-    
-    /* Ad Containers */
-    .ad-slot-premium { border: 1px dashed #FFD700; border-radius: 10px; padding: 10px; text-align: center; color: #FFD700; background: rgba(255,215,0,0.05); margin: 10px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
-    
+    .ad-slot-premium { border: 1px dashed #FFD700; border-radius: 10px; padding: 10px; text-align: center; color: #FFD700; background: rgba(255,215,0,0.05); margin: 10px 0; font-size: 12px; text-transform: uppercase; }
     .lab-box { border: 1px solid #333; padding: 20px; border-radius: 15px; background: rgba(14, 17, 23, 0.8); margin-bottom: 20px; }  
     .limit-box { padding:10px; border-radius:10px; background:#262730; border:1px solid #FFD700; text-align:center; margin-bottom:10px; font-weight:bold; }
-    
-    /* Sidebar Quick Actions */
-    .qa-btn > button { background: #111 !important; border: 1px solid #444 !important; color: #bbb !important; font-size: 14px !important; text-align: left !important; padding-left: 15px !important; }
-    .qa-btn > button:hover { border-color: #FFD700 !important; color: #FFD700 !important; }
 </style>  """, unsafe_allow_html=True)
 
 # -----------------------
@@ -121,10 +109,10 @@ def encode_image(image_bytes):
     return base64.b64encode(image_bytes).decode('utf-8')
 
 # -----------------------
-# 6. Login
+# 6. Login System
 # -----------------------
 if not st.session_state.logged_in:
-    st.markdown('<div class="premium-banner">ALPHA CORE ACCESS</div>', unsafe_allow_html=True)
+    st.markdown('<div class="premium-banner">ALPHA CORE SYSTEM ACCESS</div>', unsafe_allow_html=True)
     name = st.text_input("Operator Name")
     key = st.text_input("Master Key", type="password")
     if st.button("Initialize Alpha"):
@@ -139,119 +127,119 @@ if not st.session_state.logged_in:
 # -----------------------
 with st.sidebar:
     st.image("https://img.icons8.com/fluent/100/000000/artificial-intelligence.png", width=60)
-    st.title("Alpha Hub")
-    
-    # Advanced Ad Slot 1
+    st.title("Alpha Control")
     st.markdown('<div class="ad-slot-premium">Sponsor Ad<br>300 x 50 Banner</div>', unsafe_allow_html=True)
     
     can_gen_img, img_count, is_vip = check_user_access(st.session_state.user_full_name, "image")
     if is_vip: st.markdown('<div class="limit-box">💎 PREMIUM OPERATOR</div>', unsafe_allow_html=True)
-    else: st.markdown(f'<div class="limit-box">🖼 Photos Left: {5-img_count}</div>', unsafe_allow_html=True)
+    else: st.markdown(f'<div class="limit-box">🖼 Photos: {img_count}/5</div>', unsafe_allow_html=True)
 
     st.write("---")
     st.subheader("⚡ Quick Actions")
     q_actions = {
         "📘 FB Post Generator": "Create a creative Sinhala Facebook post about: ",
         "🎬 YouTube Script": "Write a YouTube video script for: ",
-        "📚 Study Help": "Explain this subject simply: ",
-        "✏️ Grammar Fix": "Correct the grammar of this text: "
+        "📚 Study Help": "Explain this subject simply in Sinhala: "
     }
     for label, prompt in q_actions.items():
-        if st.button(label, key=f"qa_{label}"):
-            st.session_state.quick_prompt = prompt
+        if st.button(label): st.session_state.quick_prompt = prompt
 
     st.write("---")
     voice_on = st.checkbox("Voice Response", value=True)
     if st.button("Log Out"):
         st.session_state.logged_in = False
         st.rerun()
-    
-    # Advanced Ad Slot 2
-    st.markdown('<div class="ad-slot-premium">Join Alpha VIP<br>Remove All Ads</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ad-slot-premium">Alpha VIP Active</div>', unsafe_allow_html=True)
 
 st.markdown(f'<div class="premium-banner">⚡ ALPHA AI ULTIMATE | Created by Hasith</div>', unsafe_allow_html=True)
 
 # -----------------------
-# 8. Tabs (Functional Labs)
+# 8. Tabs (The Functional Labs)
 # -----------------------
-tab_img, tab_vid, tab_voice, tab_vision = st.tabs(["🖼 Image", "🎬 Cinema", "🎙️ Voice", "👁️ Vision"])
+tab_img, tab_vid, tab_voice, tab_vision, tab_map = st.tabs(["🖼 Image", "🎬 Cinema", "🎙️ Voice", "👁️ Vision", "🧠 Map"])
 
 with tab_img:
     st.markdown('<div class="lab-box">', unsafe_allow_html=True)
     st.subheader("🔱 Titan-Gate Image Engine")
-    img_p = st.text_input("Visual Description (English):")
-    if st.button("RENDER IMAGE 🚀"):
+    img_p = st.text_input("Describe Vision (English):")
+    if st.button("RENDER MASTERPIECE 🚀"):
         if img_p:
             can, count, vip = check_user_access(st.session_state.user_full_name, "image")
             if can:
                 url = f"https://image.pollinations.ai/prompt/{img_p.replace(' ','%20')}?width=1024&height=1024&seed={random.randint(1,999)}&nologo=true"
+                st.session_state.history.insert(0, url)
                 if not vip: update_usage(st.session_state.user_full_name, count, "image")
                 st.image(url, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 with tab_vid:
     st.markdown('<div class="lab-box">', unsafe_allow_html=True)
-    st.subheader("🎬 Titan Video Engine")
-    vid_p = st.text_input("Scene Description:")
-    if st.button("Render Clip 🎥"):
-        st.video(f"https://pollinations.ai/p/{vid_p.replace(' ','%20')}?width=512&height=512&model=video")
+    st.subheader("🎬 Titan Video Engine (No-Linux Mode)")
+    vid_p = st.text_input("Describe video scene:", key="vid_p_titan")
+    if st.button("Generate Video 🎥"):
+        if vid_p:
+            with st.spinner("Alpha is rendering..."):
+                v_url = f"https://pollinations.ai/p/{vid_p.replace(' ','%20')}?width=512&height=512&model=video"
+                v_html = f'<video width="100%" controls autoplay loop><source src="{v_url}" type="video/mp4"></video>'
+                st.markdown(v_html, unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 with tab_voice:
     st.markdown('<div class="lab-box">', unsafe_allow_html=True)
-    st.subheader("🎙️ Voice Studio")
-    v_txt = st.text_area("අකුරු ශබ්දය බවට පත් කරන්න:")
-    if st.button("Speak 🔊"):
+    st.subheader("🎙️ Alpha Voice Studio")
+    v_txt = st.text_area("කථා කිරීමට අවශ්‍ය දේ ලියන්න:")
+    if st.button("Speak Now 🔊"):
         can_v, v_c, vip_v = check_user_access(st.session_state.user_full_name, "voice")
         if can_v:
-            st.audio(io.BytesIO(gTTS(text=v_txt, lang='si')._write_to_fp()).getvalue() if v_txt else b"")
+            st.audio(io.BytesIO(gTTS(text=v_txt, lang='si')._write_to_fp()).getvalue())
             if not vip_v: update_usage(st.session_state.user_full_name, v_c, "voice")
     st.markdown('</div>', unsafe_allow_html=True)
 
 with tab_vision:
     st.markdown('<div class="lab-box">', unsafe_allow_html=True)
     st.subheader("👁️ Alpha Vision Lab")
-    v_file = st.file_uploader("Upload Image:", type=["jpg", "png", "jpeg"])
+    v_file = st.file_uploader("Upload Image:", type=["jpg","png","jpeg"])
     if v_file:
         v_bytes = v_file.read()
         st.image(v_bytes, use_container_width=True)
-        v_q = st.text_input("Ask about image:")
-        if st.button("Analyze 🧠"):
+        v_query = st.text_input("Ask Alpha about this:")
+        if st.button("Analyze Image 🧠"):
             res = groq_client.chat.completions.create(
                 model="llama-3.2-11b-vision-preview",
-                messages=[{"role": "user", "content": [
-                    {"type": "text", "text": v_q or "Describe this."},
-                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encode_image(v_bytes)}"}}
-                ]}]
+                messages=[{"role":"user","content":[{"type":"text","text":v_query or "Describe this."},{"type":"image_url","image_url":{"url":f"data:image/jpeg;base64,{encode_image(v_bytes)}"}}]}]
             )
             st.info(res.choices[0].message.content)
     st.markdown('</div>', unsafe_allow_html=True)
 
+with tab_map:
+    st.markdown('<div class="lab-box">', unsafe_allow_html=True)
+    agraph(nodes=[Node(id="Alpha", label="Alpha AI", color="#FFD700"), Node(id="Hasith", label="Creator")], edges=[Edge(source="Hasith", target="Alpha")], config=Config(width=600, height=400))
+    st.markdown('</div>', unsafe_allow_html=True)
+
 # -----------------------
-# 9. Chat System
+# 9. Hybrid Chat
 # -----------------------
-st.markdown('<div class="ad-slot-premium">📢 PROMOTED: Best Cabs in Ella - Contact Sumith 📢</div>', unsafe_allow_html=True)
+st.markdown('<div class="ad-slot-premium">📢 PROMOTED: Ella Cab and Tours - Contact Sumith 📢</div>', unsafe_allow_html=True)
 
 for m in st.session_state.messages:
     with st.chat_message(m["role"]): st.markdown(m["content"])
 
-# Quick Prompt Injection
-input_val = st.session_state.quick_prompt or ""
+# Quick Prompt Logic
+current_input = st.chat_input("Command Alpha...")
+final_q = current_input or st.session_state.quick_prompt
 st.session_state.quick_prompt = None
 
-u_input = st.chat_input("Command Alpha...")
-final_input = u_input or input_val
-
-if final_input:
-    st.session_state.messages.append({"role":"user","content":final_input})
-    with st.chat_message("user"): st.markdown(final_input)
+if final_q:
+    st.session_state.messages.append({"role":"user","content":final_q})
+    with st.chat_message("user"): st.markdown(final_q)
     with st.chat_message("assistant"):
-        resp = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role":"system","content":"Your name is Alpha AI. Developed by Hasith from Bandarawela Central College. Answer in Sinhala/English mixed style."}] + st.session_state.messages[-10:]
-        ).choices[0].message.content
-        st.markdown(resp)
-        if voice_on: asyncio.run(speak_alpha(resp))
-        st.session_state.messages.append({"role":"assistant","content":resp})
+        with st.spinner("Alpha is thinking..."):
+            ans = groq_client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role":"system","content":"Your name is Alpha AI. Developed by Hasith from Bandarawela Central College. Your father is Sumith (Owner of Ella Cab and Tours)."}] + st.session_state.messages[-10:]
+            ).choices[0].message.content
+            st.markdown(ans)
+            if voice_on: asyncio.run(speak_alpha(ans))
+            st.session_state.messages.append({"role":"assistant","content":ans})
 
-st.markdown('<div class="ad-slot-premium">Alpha AI v2.5 | Ad Engine Active</div>', unsafe_allow_html=True)
+st.markdown('<div class="ad-slot-premium">Alpha AI v2.6 | Premium Gold Edition</div>', unsafe_allow_html=True)
