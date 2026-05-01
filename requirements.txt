@@ -9,3 +9,4 @@ duckduckgo_search
 supabase
 opencv-python-headless
 streamlit-agraph
+openai
