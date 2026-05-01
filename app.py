@@ -11,6 +11,7 @@ import string
 import datetime
 import urllib.parse
 from huggingface_hub import InferenceClient
+from openai import OpenAI # OpenAI ඇතුළත් කළා
 from groq import Groq
 import edge_tts
 from gtts import gTTS
@@ -30,6 +31,7 @@ SUPABASE_URL = st.secrets.get("SUPABASE_URL")
 SUPABASE_KEY = st.secrets.get("SUPABASE_KEY")
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 HF_TOKEN = st.secrets.get("HF_TOKEN")
+GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN") # GitHub Token එක ලබා ගැනීම
 
 if SUPABASE_URL and SUPABASE_KEY:
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -41,6 +43,16 @@ if GROQ_API_KEY:
     groq_client = Groq(api_key=GROQ_API_KEY)
 else:
     st.error("Groq API key missing.")
+    st.stop()
+
+# GPT-4o සඳහා Client එක සකස් කිරීම
+if GITHUB_TOKEN:
+    openai_client = OpenAI(
+        base_url="https://models.inference.ai.azure.com",
+        api_key=GITHUB_TOKEN,
+    )
+else:
+    st.error("GITHUB_TOKEN missing in secrets.")
     st.stop()
 
 hf_client = InferenceClient(token=HF_TOKEN)
@@ -146,6 +158,9 @@ with st.sidebar:
 
     st.write("---")
     voice_on = st.checkbox("Voice Response", value=True)
+    # ULTRA MODE (GPT-4o) TOGGLE
+    ultra_mode = st.toggle("🚀 ULTRA MODE (GPT-4o Streaming)", value=True)
+    
     if st.button("Log Out"):
         st.session_state.logged_in = False
         st.rerun()
@@ -217,7 +232,7 @@ with tab_map:
     st.markdown('</div>', unsafe_allow_html=True)
 
 # -----------------------
-# 9. Hybrid Chat
+# 9. Hybrid Chat (Ultra GPT-4o Streaming)
 # -----------------------
 st.markdown('<div class="ad-slot-premium">📢 PROMOTED: Ella Cab and Tours - Contact Sumith 📢</div>', unsafe_allow_html=True)
 
@@ -232,14 +247,26 @@ st.session_state.quick_prompt = None
 if final_q:
     st.session_state.messages.append({"role":"user","content":final_q})
     with st.chat_message("user"): st.markdown(final_q)
+    
     with st.chat_message("assistant"):
-        with st.spinner("Alpha is thinking..."):
-            ans = groq_client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[{"role":"system","content":"Your name is Alpha AI. Developed by Hasith from Bandarawela Central College. Your father is Sumith (Owner of Ella Cab and Tours)."}] + st.session_state.messages[-10:]
-            ).choices[0].message.content
-            st.markdown(ans)
-            if voice_on: asyncio.run(speak_alpha(ans))
-            st.session_state.messages.append({"role":"assistant","content":ans})
+        status_placeholder = st.empty()
+        status_placeholder.markdown("🔍 Alpha is thinking...")
+        
+        try:
+            # GPT-4o ULTRA STREAMING LOGIC
+            response_stream = openai_client.chat.completions.create(
+                model="gpt-4o",
+                messages=[{"role":"system","content":"Your name is Alpha AI. Developed by Hasith from Bandarawela Central College. Your father is Sumith (Owner of Ella Cab and Tours). Respond primarily in Sinhala."}] + st.session_state.messages[-10:],
+                stream=True
+            )
+            
+            status_placeholder.empty()
+            full_ans = st.write_stream(response_stream)
+            
+            if voice_on: asyncio.run(speak_alpha(full_ans))
+            st.session_state.messages.append({"role":"assistant","content":full_ans})
+            
+        except Exception as e:
+            st.error(f"Alpha Core Error: {e}")
 
 st.markdown('<div class="ad-slot-premium">Alpha AI v2.6 | Premium Gold Edition</div>', unsafe_allow_html=True)
