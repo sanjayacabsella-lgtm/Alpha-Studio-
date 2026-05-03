@@ -11,7 +11,7 @@ import string
 import datetime
 import urllib.parse
 from huggingface_hub import InferenceClient
-from openai import OpenAI # OpenAI ඇතුළත් කළා
+from openai import OpenAI
 from groq import Groq
 import edge_tts
 from gtts import gTTS
@@ -31,7 +31,7 @@ SUPABASE_URL = st.secrets.get("SUPABASE_URL")
 SUPABASE_KEY = st.secrets.get("SUPABASE_KEY")
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 HF_TOKEN = st.secrets.get("HF_TOKEN")
-GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN") # GitHub Token එක ලබා ගැනීම
+GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN")
 
 if SUPABASE_URL and SUPABASE_KEY:
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -45,7 +45,6 @@ else:
     st.error("Groq API key missing.")
     st.stop()
 
-# GPT-4o සඳහා Client එක සකස් කිරීම
 if GITHUB_TOKEN:
     openai_client = OpenAI(
         base_url="https://models.inference.ai.azure.com",
@@ -158,7 +157,6 @@ with st.sidebar:
 
     st.write("---")
     voice_on = st.checkbox("Voice Response", value=True)
-    # ULTRA MODE (GPT-4o) TOGGLE
     ultra_mode = st.toggle("🚀 ULTRA MODE (GPT-4o Streaming)", value=True)
     
     if st.button("Log Out"):
@@ -232,14 +230,13 @@ with tab_map:
     st.markdown('</div>', unsafe_allow_html=True)
 
 # -----------------------
-# 9. Hybrid Chat (Ultra GPT-4o Streaming)
+# 9. Hybrid Chat (Ultra GPT-4o Streaming with DNA Evolution & Live Injection)
 # -----------------------
 st.markdown('<div class="ad-slot-premium">📢 PROMOTED: Ella Cab and Tours - Contact Sumith 📢</div>', unsafe_allow_html=True)
 
 for m in st.session_state.messages:
-    with st.chat_message(m["role"]): st.markdown(m["content"])
+    with st.chat_message(m["role"]): st.markdown(m["content"], unsafe_allow_html=True)
 
-# Quick Prompt Logic
 current_input = st.chat_input("Command Alpha...")
 final_q = current_input or st.session_state.quick_prompt
 st.session_state.quick_prompt = None
@@ -250,23 +247,41 @@ if final_q:
     
     with st.chat_message("assistant"):
         status_placeholder = st.empty()
-        status_placeholder.markdown("🔍 Alpha is thinking...")
+        live_ui_placeholder = st.empty() # Live UI එක පෙන්වීමට ස්ථානය
+        status_placeholder.markdown("🧬 DNA Evaluating & Forging...")
         
         try:
-            # GPT-4o ULTRA STREAMING LOGIC
+            # DNA PROTOCOL & LIVE INJECTION INSTRUCTIONS
+            dna_system_prompt = """
+            [CORE IDENTITY: ALPHA AI ULTIMATE V2.6]
+            - DEVELOPER: Hasith (Bandarawela Central College).
+            - LINEAGE: Father is Sumith (Ella Cab and Tours).
+            - DNA PROTOCOL: Self-evolving logic. 
+            - LIVE INJECTION: If the user asks for a UI element (button, calculator, link), 
+              generate the pure HTML/CSS code enclosed within [LIVE_UI]...[/LIVE_UI] tags.
+            - OUTPUT: High-fidelity Sinhala.
+            """
+
             response_stream = openai_client.chat.completions.create(
                 model="gpt-4o",
-                messages=[{"role":"system","content":"Your name is Alpha AI. Developed by Hasith from Bandarawela Central College. Your father is Sumith (Owner of Ella Cab and Tours). Respond primarily in Sinhala."}] + st.session_state.messages[-10:],
+                messages=[{"role":"system","content": dna_system_prompt}] + st.session_state.messages[-10:],
                 stream=True
             )
             
             status_placeholder.empty()
             full_ans = st.write_stream(response_stream)
             
-            if voice_on: asyncio.run(speak_alpha(full_ans))
+            # සජීවීව ප්‍රතිඵල පෙන්වීමේ (Live Injection) තර්කනය
+            if "[LIVE_UI]" in full_ans:
+                try:
+                    ui_content = full_ans.split("[LIVE_UI]")[1].split("[/LIVE_UI]")[0]
+                    live_ui_placeholder.markdown(ui_content, unsafe_allow_html=True)
+                except: pass
+
+            if voice_on: asyncio.run(speak_alpha(full_ans.replace("[LIVE_UI]", "").replace("[/LIVE_UI]", "")))
             st.session_state.messages.append({"role":"assistant","content":full_ans})
             
         except Exception as e:
             st.error(f"Alpha Core Error: {e}")
 
-st.markdown('<div class="ad-slot-premium">Alpha AI v2.6 | Premium Gold Edition</div>', unsafe_allow_html=True)
+st.markdown('<div class="ad-slot-premium">Alpha AI v2.6 | DNA & Live UI Active</div>', unsafe_allow_html=True)
