@@ -29,7 +29,6 @@ st.set_page_config(page_title="Alpha AI | Created by Hasith", layout="wide", pag
 # -----------------------
 SUPABASE_URL = st.secrets.get("SUPABASE_URL")
 SUPABASE_KEY = st.secrets.get("SUPABASE_KEY")
-# GROQ_API_KEY = st.secrets.get("GROQ_API_KEY") # Vision Lab දැන් GitHub API හරහා ක්‍රියාත්මක වේ.
 HF_TOKEN = st.secrets.get("HF_TOKEN")
 GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN")
 
@@ -38,13 +37,6 @@ if SUPABASE_URL and SUPABASE_KEY:
 else:
     st.error("Supabase credentials missing.")
     st.stop()
-
-# Groq Client එක ඉවත් කළේය
-# if GROQ_API_KEY:
-#     groq_client = Groq(api_key=GROQ_API_KEY)
-# else:
-#     st.error("Groq API key missing.")
-#     st.stop()
 
 if GITHUB_TOKEN:
     openai_client = OpenAI(
@@ -80,7 +72,6 @@ st.markdown("""
     .ad-slot-premium { border: 1px dashed #FFD700; border-radius: 10px; padding: 10px; text-align: center; color: #FFD700; background: rgba(255,215,0,0.05); margin: 10px 0; font-size: 12px; text-transform: uppercase; }
     .lab-box { border: 1px solid #333; padding: 20px; border-radius: 15px; background: rgba(14, 17, 23, 0.8); margin-bottom: 20px; }  
     .limit-box { padding:10px; border-radius:10px; background:#262730; border:1px solid #FFD700; text-align:center; margin-bottom:10px; font-weight:bold; }
-    /* Agent Message Styling */
     .agent-tag { font-size: 10px; text-transform: uppercase; color: #FFD700; background: rgba(255,215,0,0.1); padding: 2px 5px; border-radius: 5px; margin-right: 5px; }
 </style>  """, unsafe_allow_html=True)
 
@@ -220,9 +211,9 @@ with tab_vision:
         st.image(v_bytes, use_container_width=True)
         v_query = st.text_input("Ask Alpha about this:")
         if st.button("Analyze Image 🧠"):
-            # Llama-3.2-90B-Vision මොඩල් එක GitHub API හරහා භාවිතා කරයි
+            # Llama-3.2-90B-Vision-Instruct GitHub Model ID
             res = openai_client.chat.completions.create(
-                model="Llama-3.2-90B-Vision", # image_0.png හි ඇති මොඩල් එක
+                model="Llama-3.2-90B-Vision-Instruct",
                 messages=[{"role":"user","content":[{"type":"text","text":v_query or "Describe this."},{"type":"image_url","image_url":{"url":f"data:image/jpeg;base64,{encode_image(v_bytes)}"}}]}]
             )
             st.info(res.choices[0].message.content)
@@ -234,7 +225,7 @@ with tab_map:
     st.markdown('</div>', unsafe_allow_html=True)
 
 # -----------------------
-# 9. Hybrid Chat (Ultra Multi-Agent Collaboration with DNA Forging & Live Injection)
+# 9. Hybrid Chat (Ultra Multi-Agent Collaboration with DNA Evolution & Live Injection)
 # -----------------------
 st.markdown('<div class="ad-slot-premium">📢 PROMOTED: Ella Cab and Tours - Contact Sumith 📢</div>', unsafe_allow_html=True)
 
@@ -252,65 +243,56 @@ if final_q:
     with st.chat_message("assistant"):
         status_placeholder = st.empty()
         live_ui_placeholder = st.empty()
-        status_placeholder.markdown("🤝 Agents Collaborating & Evaluating DNA...")
+        status_placeholder.markdown("🧬 DNA Evaluating & Agent Synchronizing...")
         
         try:
-            # DNA PROTOCOL & LIVE INJECTION INSTRUCTIONS
             dna_system_prompt = """
             [CORE IDENTITY: ALPHA AI ULTIMATE V2.6]
             - DEVELOPER: Hasith (Bandarawela Central College).
             - LINEAGE: Father is Sumith (Ella Cab and Tours).
             - DNA PROTOCOL: Self-evolving logic. 
-            - LIVE INJECTION: If the user asks for a UI element (button, calculator, link), 
-              generate the pure HTML/CSS code enclosed within [LIVE_UI]...[/LIVE_UI] tags.
-            - MULTI-AGENT COLLABORATION: You are a team of 4 elite AI agents.
-            - OUTPUT: High-fidelity Sinhala.
+            - LIVE INJECTION: If requested, generate code within [LIVE_UI]...[/LIVE_UI].
+            - TEAM: gpt-4o (Lead), o3 (Technical), gpt-5-chat (Creative), o1 (Reasoner).
             """
 
-            # Agent 1: Lead Strategist (gpt-4o)
-            agent_lead_response = openai_client.chat.completions.create(
-                model="gpt-4o", # ඔබේ ප්‍රධාන මොඩල් එක
-                messages=[{"role":"system","content": dna_system_prompt}] + st.session_state.messages[-10:],
-                stream=False
+            # Agent 1: Lead (gpt-4o)
+            agent_lead = openai_client.chat.completions.create(
+                model="gpt-4o",
+                messages=[{"role":"system","content": dna_system_prompt}] + st.session_state.messages[-10:]
             )
-            lead_ans = agent_lead_response.choices[0].message.content
+            lead_ans = agent_lead.choices[0].message.content
 
-            # Agent 2: Technical Expert (o3) - image_1.png
-            agent_tech_response = openai_client.chat.completions.create(
-                model="o3", # image_1.png හි ඇති මොඩල් එක
-                messages=[{"role":"system","content": "You are the Technical Expert. Analyze the lead's response and provide any technical insights or code improvements if needed."}, {"role": "user", "content": f"User query: {final_q}\nLead response: {lead_ans}"}],
-                stream=False
+            # Agent 2: Technical Expert (o3)
+            agent_tech = openai_client.chat.completions.create(
+                model="o3",
+                messages=[{"role":"system","content": "Technical Expert logic."}, {"role": "user", "content": f"Analyze: {final_q}\nContext: {lead_ans}"}]
             )
-            tech_ans = agent_tech_response.choices[0].message.content
+            tech_ans = agent_tech.choices[0].message.content
 
-            # Agent 3: Creative Designer (gpt-5-nano) - image_1.png
-            agent_creative_response = openai_client.chat.completions.create(
-                model="gpt-5-nano", # image_1.png හි ඇති මොඩල් එක
-                messages=[{"role":"system","content": "You are the Creative Designer. Enhance the visual appeal and user experience of the response."}, {"role": "user", "content": f"User query: {final_q}\nLead response: {lead_ans}\nTechnical response: {tech_ans}"}],
-                stream=False
+            # Agent 3: Creative Future Tech (gpt-5-chat)
+            agent_creative = openai_client.chat.completions.create(
+                model="gpt-5-chat",
+                messages=[{"role":"system","content": "Creative Visionary."}, {"role": "user", "content": f"Enhance: {final_q}\nContext: {lead_ans}"}]
             )
-            creative_ans = agent_creative_response.choices[0].message.content
+            creative_ans = agent_creative.choices[0].message.content
 
-            # Agent 4: Travel/Local Advisor (o1-preview) - image_1.png
-            agent_travel_response = openai_client.chat.completions.create(
-                model="o1-preview", # image_1.png හි ඇති මොඩල් එක
-                messages=[{"role":"system","content": "You are the Travel and Local Advisor for Ella Cab and Tours. Provide any relevant local knowledge or travel tips related to the query."}, {"role": "user", "content": f"User query: {final_q}\nLead response: {lead_ans}"}],
-                stream=False
+            # Agent 4: Complex Reasoner (o1)
+            agent_reasoner = openai_client.chat.completions.create(
+                model="o1",
+                messages=[{"role":"system","content": "Deep Reasoner."}, {"role": "user", "content": f"Think Deep: {final_q}"}]
             )
-            travel_ans = agent_travel_response.choices[0].message.content
+            reason_ans = agent_reasoner.choices[0].message.content
 
-            # Final Consolidator (back to gpt-4o)
+            # Final Consolidator
             final_response = openai_client.chat.completions.create(
                 model="gpt-4o",
-                messages=[{"role":"system","content": f"{dna_system_prompt}\nConsolidate the team's input into a single, high-quality Sinhala response. Use agent tags like <span class='agent-tag'>AGENT NAME</span> only if necessary to highlight specific expertise."}, {"role": "user", "content": f"User query: {final_q}\n\nAgent Lead: {lead_ans}\n\nAgent Technical: {tech_ans}\n\nAgent Creative: {creative_ans}\n\nAgent Travel: {travel_ans}"}],
-                stream=False
+                messages=[{"role":"system","content": f"{dna_system_prompt}\nConsolidate inputs into final Sinhala output."}, {"role": "user", "content": f"Team Input: {lead_ans}, {tech_ans}, {creative_ans}, {reason_ans}"}]
             )
             full_ans = final_response.choices[0].message.content
             
             status_placeholder.empty()
             st.markdown(full_ans, unsafe_allow_html=True)
             
-            # සජීවීව ප්‍රතිඵල පෙන්වීමේ (Live Injection) තර්කනය
             if "[LIVE_UI]" in full_ans:
                 try:
                     ui_content = full_ans.split("[LIVE_UI]")[1].split("[/LIVE_UI]")[0]
