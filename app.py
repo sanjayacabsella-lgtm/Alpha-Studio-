@@ -29,7 +29,7 @@ st.set_page_config(page_title="Alpha AI | Created by Hasith", layout="wide", pag
 # -----------------------
 SUPABASE_URL = st.secrets.get("SUPABASE_URL")
 SUPABASE_KEY = st.secrets.get("SUPABASE_KEY")
-GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
+# GROQ_API_KEY = st.secrets.get("GROQ_API_KEY") # Vision Lab දැන් GitHub API හරහා ක්‍රියාත්මක වේ.
 HF_TOKEN = st.secrets.get("HF_TOKEN")
 GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN")
 
@@ -39,11 +39,12 @@ else:
     st.error("Supabase credentials missing.")
     st.stop()
 
-if GROQ_API_KEY:
-    groq_client = Groq(api_key=GROQ_API_KEY)
-else:
-    st.error("Groq API key missing.")
-    st.stop()
+# Groq Client එක ඉවත් කළේය
+# if GROQ_API_KEY:
+#     groq_client = Groq(api_key=GROQ_API_KEY)
+# else:
+#     st.error("Groq API key missing.")
+#     st.stop()
 
 if GITHUB_TOKEN:
     openai_client = OpenAI(
@@ -79,6 +80,8 @@ st.markdown("""
     .ad-slot-premium { border: 1px dashed #FFD700; border-radius: 10px; padding: 10px; text-align: center; color: #FFD700; background: rgba(255,215,0,0.05); margin: 10px 0; font-size: 12px; text-transform: uppercase; }
     .lab-box { border: 1px solid #333; padding: 20px; border-radius: 15px; background: rgba(14, 17, 23, 0.8); margin-bottom: 20px; }  
     .limit-box { padding:10px; border-radius:10px; background:#262730; border:1px solid #FFD700; text-align:center; margin-bottom:10px; font-weight:bold; }
+    /* Agent Message Styling */
+    .agent-tag { font-size: 10px; text-transform: uppercase; color: #FFD700; background: rgba(255,215,0,0.1); padding: 2px 5px; border-radius: 5px; margin-right: 5px; }
 </style>  """, unsafe_allow_html=True)
 
 # -----------------------
@@ -157,7 +160,7 @@ with st.sidebar:
 
     st.write("---")
     voice_on = st.checkbox("Voice Response", value=True)
-    ultra_mode = st.toggle("🚀 ULTRA MODE (GPT-4o Streaming)", value=True)
+    ultra_mode = st.toggle("🚀 ULTRA MODE (Multi-Agent Collab)", value=True)
     
     if st.button("Log Out"):
         st.session_state.logged_in = False
@@ -210,15 +213,16 @@ with tab_voice:
 
 with tab_vision:
     st.markdown('<div class="lab-box">', unsafe_allow_html=True)
-    st.subheader("👁️ Alpha Vision Lab")
+    st.subheader("👁️ Alpha Vision Lab (Llama-3.2-90B)")
     v_file = st.file_uploader("Upload Image:", type=["jpg","png","jpeg"])
     if v_file:
         v_bytes = v_file.read()
         st.image(v_bytes, use_container_width=True)
         v_query = st.text_input("Ask Alpha about this:")
         if st.button("Analyze Image 🧠"):
-            res = groq_client.chat.completions.create(
-                model="llama-3.2-11b-vision-preview",
+            # Llama-3.2-90B-Vision මොඩල් එක GitHub API හරහා භාවිතා කරයි
+            res = openai_client.chat.completions.create(
+                model="Llama-3.2-90B-Vision", # image_0.png හි ඇති මොඩල් එක
                 messages=[{"role":"user","content":[{"type":"text","text":v_query or "Describe this."},{"type":"image_url","image_url":{"url":f"data:image/jpeg;base64,{encode_image(v_bytes)}"}}]}]
             )
             st.info(res.choices[0].message.content)
@@ -230,7 +234,7 @@ with tab_map:
     st.markdown('</div>', unsafe_allow_html=True)
 
 # -----------------------
-# 9. Hybrid Chat (Ultra GPT-4o Streaming with DNA Evolution & Live Injection)
+# 9. Hybrid Chat (Ultra Multi-Agent Collaboration with DNA Forging & Live Injection)
 # -----------------------
 st.markdown('<div class="ad-slot-premium">📢 PROMOTED: Ella Cab and Tours - Contact Sumith 📢</div>', unsafe_allow_html=True)
 
@@ -247,8 +251,8 @@ if final_q:
     
     with st.chat_message("assistant"):
         status_placeholder = st.empty()
-        live_ui_placeholder = st.empty() # Live UI එක පෙන්වීමට ස්ථානය
-        status_placeholder.markdown("🧬 DNA Evaluating & Forging...")
+        live_ui_placeholder = st.empty()
+        status_placeholder.markdown("🤝 Agents Collaborating & Evaluating DNA...")
         
         try:
             # DNA PROTOCOL & LIVE INJECTION INSTRUCTIONS
@@ -259,17 +263,52 @@ if final_q:
             - DNA PROTOCOL: Self-evolving logic. 
             - LIVE INJECTION: If the user asks for a UI element (button, calculator, link), 
               generate the pure HTML/CSS code enclosed within [LIVE_UI]...[/LIVE_UI] tags.
+            - MULTI-AGENT COLLABORATION: You are a team of 4 elite AI agents.
             - OUTPUT: High-fidelity Sinhala.
             """
 
-            response_stream = openai_client.chat.completions.create(
-                model="gpt-4o",
+            # Agent 1: Lead Strategist (gpt-4o)
+            agent_lead_response = openai_client.chat.completions.create(
+                model="gpt-4o", # ඔබේ ප්‍රධාන මොඩල් එක
                 messages=[{"role":"system","content": dna_system_prompt}] + st.session_state.messages[-10:],
-                stream=True
+                stream=False
             )
+            lead_ans = agent_lead_response.choices[0].message.content
+
+            # Agent 2: Technical Expert (o3) - image_1.png
+            agent_tech_response = openai_client.chat.completions.create(
+                model="o3", # image_1.png හි ඇති මොඩල් එක
+                messages=[{"role":"system","content": "You are the Technical Expert. Analyze the lead's response and provide any technical insights or code improvements if needed."}, {"role": "user", "content": f"User query: {final_q}\nLead response: {lead_ans}"}],
+                stream=False
+            )
+            tech_ans = agent_tech_response.choices[0].message.content
+
+            # Agent 3: Creative Designer (gpt-5-nano) - image_1.png
+            agent_creative_response = openai_client.chat.completions.create(
+                model="gpt-5-nano", # image_1.png හි ඇති මොඩල් එක
+                messages=[{"role":"system","content": "You are the Creative Designer. Enhance the visual appeal and user experience of the response."}, {"role": "user", "content": f"User query: {final_q}\nLead response: {lead_ans}\nTechnical response: {tech_ans}"}],
+                stream=False
+            )
+            creative_ans = agent_creative_response.choices[0].message.content
+
+            # Agent 4: Travel/Local Advisor (o1-preview) - image_1.png
+            agent_travel_response = openai_client.chat.completions.create(
+                model="o1-preview", # image_1.png හි ඇති මොඩල් එක
+                messages=[{"role":"system","content": "You are the Travel and Local Advisor for Ella Cab and Tours. Provide any relevant local knowledge or travel tips related to the query."}, {"role": "user", "content": f"User query: {final_q}\nLead response: {lead_ans}"}],
+                stream=False
+            )
+            travel_ans = agent_travel_response.choices[0].message.content
+
+            # Final Consolidator (back to gpt-4o)
+            final_response = openai_client.chat.completions.create(
+                model="gpt-4o",
+                messages=[{"role":"system","content": f"{dna_system_prompt}\nConsolidate the team's input into a single, high-quality Sinhala response. Use agent tags like <span class='agent-tag'>AGENT NAME</span> only if necessary to highlight specific expertise."}, {"role": "user", "content": f"User query: {final_q}\n\nAgent Lead: {lead_ans}\n\nAgent Technical: {tech_ans}\n\nAgent Creative: {creative_ans}\n\nAgent Travel: {travel_ans}"}],
+                stream=False
+            )
+            full_ans = final_response.choices[0].message.content
             
             status_placeholder.empty()
-            full_ans = st.write_stream(response_stream)
+            st.markdown(full_ans, unsafe_allow_html=True)
             
             # සජීවීව ප්‍රතිඵල පෙන්වීමේ (Live Injection) තර්කනය
             if "[LIVE_UI]" in full_ans:
@@ -284,4 +323,4 @@ if final_q:
         except Exception as e:
             st.error(f"Alpha Core Error: {e}")
 
-st.markdown('<div class="ad-slot-premium">Alpha AI v2.6 | DNA & Live UI Active</div>', unsafe_allow_html=True)
+st.markdown('<div class="ad-slot-premium">Alpha AI v2.6 | DNA, Multi-Agent & Live UI Active</div>', unsafe_allow_html=True)
